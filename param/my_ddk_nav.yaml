@@ -1,0 +1,16 @@
+###########################################################
+# Defines topics services and frames for all modules
+
+### TF frames #############################################
+# laser_frame: laser_link
+robot_frame: ddk/base_link
+odometry_frame: world
+# offset_frame: offset
+map_frame: ddk/odom
+
+### ROS topics ############################################
+map_topic: ddk/odom
+# laser_topic: base_scan
+
+### ROS services ##########################################
+# map_service: dynamic_map
