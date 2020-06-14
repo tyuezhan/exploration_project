@@ -6,7 +6,7 @@
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
         <!-- <arg name="world_name" value="$(find mrsl_quadrotor_description)/worlds/$(arg world).world"/> -->
         <!-- <arg name="world_name" value="$(find nav2d_tutorials)/world/$(arg world).world"/> -->
-        <arg name="world_name" value="worlds/willowgarage.world"/> <!-- Note: the world_name is with respect to GAZEBO_RESOURCE_PATH environmental variable -->
+        <arg name="world_name" value="worlds/willowgarage.world"/>
         <arg name="debug" value="false" />
         <arg name="verbose" value="true" />
         <arg name="gui" value="$(arg gui)" />
