@@ -14,11 +14,11 @@
 		<remap from="cloud_in" to="/ddk/rgbd/depth/points" />
         <!-- <param name="base_frame_id" type="string" value="/ddk/ground_truth/odom"/> -->
 
-        <!-- <param name="latch" type="bool" value="false"/> -->
+        <param name="latch" type="bool" value="false"/>
 
-		<!-- <param name="occupancy_min_z" value="0.5"/> -->
+		<param name="occupancy_min_z" value="0.05"/>
 
-		<!-- <param name="occupancy_max_z" value="0.5"/> -->
+		<param name="occupancy_max_z" value="0.5"/>
 
 	</node>
 

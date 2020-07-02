@@ -9,7 +9,7 @@ odometry_frame: world
 map_frame: ddk/odom
 
 ### ROS topics ############################################
-map_topic: ddk/odom
+map_topic: /projected_map
 # laser_topic: base_scan
 
 ### ROS services ##########################################
