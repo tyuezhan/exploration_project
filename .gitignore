@@ -52,3 +52,4 @@ CATKIN_IGNORE
 
 # custom ignore
 .vscode
+ddk_nav_2d/.vscode
