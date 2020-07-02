@@ -1,0 +1,31 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "",
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "includePath": [
+                "/home/yuezhan/kumarRobotics/catkin_ws/devel/include/**",
+                "/opt/ros/melodic/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/ddk_nav_2d/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/quadrotor_control/kr_mav_controllers/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/quadrotor_control/kr_mav_manager/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/multi_mav_manager/kr_multi_mav_manager/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/quadrotor_control/kr_quadrotor_simulator/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/quadrotor_control/interfaces/kr_serial_interface/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/quadrotor_control/trackers/kr_trackers/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/quadrotor_control/trackers/kr_trackers_manager/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/mrsl_quadrotor/mrsl_quadrotor_simulator/include/**",
+                "/home/yuezhan/kumarRobotics/catkin_ws/src/mrsl_quadrotor/mrsl_quadrotor_utils/include/**",
+                "/usr/include/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14"
+        }
+    ],
+    "version": 4
+}
