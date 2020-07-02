@@ -31,7 +31,7 @@ fi
 tmux setw -g mouse on
 
 tmux rename-window -t $SESSION_NAME "Main"
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; export DISPLAY=${CURRENT_DISPLAY}; roslaunch comcast_launch my_ddk_gazebo.launch" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; export DISPLAY=${CURRENT_DISPLAY}; roslaunch ddk_sim_launch my_ddk_gazebo.launch" Enter
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 3; export DISPLAY=${CURRENT_DISPLAY}; roslaunch mrsl_quadrotor_launch spawn.launch mav_type:=${MAV_TYPE} mav_name:=${MAV_NAME}" Enter
 tmux split-window -t $SESSION_NAME
@@ -41,11 +41,11 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CU
 tmux select-layout -t $SESSION_NAME tiled
 
 tmux new-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch comcast_launch octomap_mapping.launch" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch octomap_mapping.launch" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch comcast_launch ddk_sim_tf_pub.launch" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch ddk_sim_tf_pub.launch" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch comcast_launch my_ddk_nav.launch" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch my_ddk_nav.launch" Enter
 tmux select-layout -t $SESSION_NAME even-horizontal
 
 tmux new-window -t $SESSION_NAME

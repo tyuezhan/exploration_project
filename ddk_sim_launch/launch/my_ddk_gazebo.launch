@@ -5,7 +5,7 @@
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <!-- <arg name="world_name" value="$(find mrsl_quadrotor_description)/worlds/$(arg world).world"/> -->
-    <arg name="world_name" value="$(find comcast_launch)/worlds/smalloffice_texture.world"/>
+    <arg name="world_name" value="$(find ddk_sim_launch)/worlds/smalloffice_texture.world"/>
     <arg name="debug" value="false" />
     <arg name="verbose" value="true" />
     <arg name="gui" value="$(arg gui)" />
