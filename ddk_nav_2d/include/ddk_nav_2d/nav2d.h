@@ -50,10 +50,8 @@ public:
 
     ros::Subscriber mapSubscriber;
     ros::Subscriber poseSubscriber;
-    // ros::Subscriber octomapSubscriber;
 
     void mapSubscriberCB(const nav_msgs::OccupancyGrid &map);
-    // void octomapSubscriberCB(const octomap_msgs::Octomap &octomap);
     void poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom);
     void receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal);
 	void receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal);
@@ -62,7 +60,6 @@ public:
     bool transition(const std::string &tracker_str);
     bool getMapIndex();
     bool preparePlan();
-    // float headTowards(unsigned int current_x, unsigned int current_y, unsigned int target);
 
     ddkPlanner mPlanner;
 private:
@@ -106,9 +103,6 @@ private:
     // action Client 
     typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> ClientType;
     void tracker_done_callback(const actionlib::SimpleClientGoalState& state, const kr_tracker_msgs::LineTrackerResultConstPtr& result);
-    // ros::NodeHandle nh1;
-    // ClientType line_tracker_min_jerk_client_(nh1, "ddk/trackers_manager/line_tracker_min_jerk/LineTracker", true);;
-    // line_tracker_min_jerk_client_
     ClientType* line_tracker_min_jerk_client_;
 
     // Services

@@ -12,7 +12,6 @@ nav2d::nav2d(){
     
     mapSubscriber = nh.subscribe("projected_map", 5, &nav2d::mapSubscriberCB, this);
     poseSubscriber = nh.subscribe("ddk/ground_truth/odom", 5000, &nav2d::poseSubscriberCB, this);
-    // octomapSubscriber = nh.subscribe("octomap_full", 5, &nav2d::octomapSubscriberCB, this);
 
     // Load planer
     nh.param("min_replanning_period", mMinReplanningPeriod, 5.0);
@@ -100,10 +99,6 @@ void nav2d::mapSubscriberCB(const nav_msgs::OccupancyGrid &map){
 
 }
 
-// void nav2d::octomapSubscriberCB(const octomap_msgs::Octomap &octomap){
-//     ROS_INFO("Octomap update received.");
-//     mPlanner.updateOctomap(octomap);
-// }
 
 void nav2d::poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom){
     // ROS_INFO("pose update received.");
@@ -157,7 +152,6 @@ void nav2d::receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal)
         mGetFirstMapActionServer->publishFeedback(f);
         if (lineTrackerStatus == NAV_ST_IDLE){
             goTo(1, 0, 0, 0, 0.0f, 0.0f, true);
-            // goTo(2, 0, 0.5, 0, 0.0f, 0.0f, false);
             distance += 1;
         }
         spinOnce();
@@ -244,9 +238,6 @@ void nav2d::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal){
                                 float worldGoalY = mCurrentMap.getOriginY() + (((double)goal_y+0.5) * mCurrentMap.getResolution());
                                 float worldGoalZ = 0.4;
                                 float yaw;
-                                // unsigned int current_x = (pos_(0) - mCurrentMap.getOriginX()) / mCurrentMap.getResolution();
-	                            // unsigned int current_y = (pos_(1) - mCurrentMap.getOriginY()) / mCurrentMap.getResolution();
-                                // yaw = headTowards(pos_(0), pos_(1), mGoalPoint);
 
                                 yaw = atan2(pos_(1)-worldGoalY, pos_(0)-worldGoalX);
                                 yaw += PI;
@@ -400,10 +391,7 @@ bool nav2d::getMapIndex(){
     signed char valueHere = mCurrentMap.getData(current_x, current_y);
     // ROS_INFO("Check current position map value: %u", valueHere);
     mStartPoint = i;
-    // Can delete these
-    // mCurrentDirection = world_theta;
-	// mCurrentPositionX = world_x;
-	// mCurrentPositionY = world_y;
+
     ROS_INFO("Get map index: %f, %f, %d, %d, %d", world_x, world_y, current_x, current_y, i);
     return true;
 }
@@ -424,17 +412,3 @@ bool nav2d::preparePlan(){
 }
 
 
-// float nav2d::headTowards(unsigned int current_x, unsigned int current_y, unsigned int target){
-//     unsigned int x = 0, y = 0;
-// 	if(!mCurrentMap.getCoordinates(x, y, target))
-// 	{
-// 		ROS_ERROR("Turn head towards goalpoint failed.");
-// 		return 0;
-// 	}
-// 	double map_angle = atan2((double)y - current_y, (double)x - current_x);
-	
-// 	double angle = map_angle - yaw_;
-// 	if(angle < -PI) angle += 2*PI;
-// 	if(angle > PI) angle -= 2*PI;
-//     return angle;
-// }
