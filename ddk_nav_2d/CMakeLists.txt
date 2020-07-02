@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav2d_operator
   nav2d_msgs
   kr_mav_msgs
+  kr_tracker_msgs
 )
 
 find_package(octomap REQUIRED)
