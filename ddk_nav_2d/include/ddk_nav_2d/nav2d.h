@@ -50,10 +50,10 @@ public:
 
     ros::Subscriber mapSubscriber;
     ros::Subscriber poseSubscriber;
-    // ros::Subscriber octomapSubscriber;
+    ros::Subscriber octomapSubscriber;
 
     void mapSubscriberCB(const nav_msgs::OccupancyGrid &map);
-    // void octomapSubscriberCB(const octomap_msgs::Octomap &octomap);
+    void octomapSubscriberCB(const octomap_msgs::Octomap &octomap);
     void poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom);
     void receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal);
 	void receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal);

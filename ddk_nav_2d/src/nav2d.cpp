@@ -12,7 +12,7 @@ nav2d::nav2d(){
     
     mapSubscriber = nh.subscribe("projected_map", 5, &nav2d::mapSubscriberCB, this);
     poseSubscriber = nh.subscribe("ddk/ground_truth/odom", 5000, &nav2d::poseSubscriberCB, this);
-    // octomapSubscriber = nh.subscribe("octomap_full", 5, &nav2d::octomapSubscriberCB, this);
+    octomapSubscriber = nh.subscribe("octomap_full", 5, &nav2d::octomapSubscriberCB, this);
 
     // Load planer
     nh.param("min_replanning_period", mMinReplanningPeriod, 5.0);
@@ -100,10 +100,10 @@ void nav2d::mapSubscriberCB(const nav_msgs::OccupancyGrid &map){
 
 }
 
-// void nav2d::octomapSubscriberCB(const octomap_msgs::Octomap &octomap){
-//     ROS_INFO("Octomap update received.");
-//     mPlanner.updateOctomap(octomap);
-// }
+void nav2d::octomapSubscriberCB(const octomap_msgs::Octomap &octomap){
+    ROS_INFO("Octomap update received.");
+    mPlanner.updateOctomap(octomap);
+}
 
 void nav2d::poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom){
     // ROS_INFO("pose update received.");
