@@ -30,17 +30,25 @@ fi
 # Make mouse useful in copy mode
 tmux setw -g mouse on
 
-tmux rename-window -t $SESSION_NAME "Main"
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; export DISPLAY=${CURRENT_DISPLAY}; roslaunch ddk_sim_launch my_ddk_gazebo.launch" Enter
+tmux rename-window -t $SESSION_NAME "Core"
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; roscore" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 3; export DISPLAY=${CURRENT_DISPLAY}; roslaunch mrsl_quadrotor_launch spawn.launch mav_type:=${MAV_TYPE} mav_name:=${MAV_NAME}" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; rosrun kr_trackers twist_to_velocity_goal.py __ns:=${MAV_NAME}" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; roslaunch mrsl_quadrotor_launch controller.launch mav_type:=${MAV_TYPE} mav_name:=${MAV_NAME} odom_topic:=${ODOM_TOPIC} mass:=0.25" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; rosparam set robot_name ${MAV_NAME}; rosrun rqt_mav_manager rqt_mav_manager" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; rosrun rqt_mav_manager rqt_mav_manager" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch kr_mav_launch mesh_vis.launch mav_type:=hummingbird mav_name:=${MAV_NAME} odom_topic:=${MAV_NAME}/${ODOM_TOPIC}" Enter
 tmux select-layout -t $SESSION_NAME tiled
 
-tmux new-window -t $SESSION_NAME
+tmux new-window -t $SESSION_NAME -n "Main"
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 3; export DISPLAY=${CURRENT_DISPLAY}; roslaunch ddk_sim_launch my_ddk_gazebo.launch" Enter
+tmux split-window -t $SESSION_NAME
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; roslaunch mrsl_quadrotor_launch spawn.launch mav_type:=${MAV_TYPE} mav_name:=${MAV_NAME}" Enter
+tmux split-window -t $SESSION_NAME
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; roslaunch mrsl_quadrotor_launch controller.launch mav_type:=${MAV_TYPE} mav_name:=${MAV_NAME} odom_topic:=${ODOM_TOPIC} mass:=0.25" Enter
+tmux select-layout -t $SESSION_NAME tiled
+
+tmux new-window -t $SESSION_NAME -n "Exp"
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch octomap_mapping.launch" Enter
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch ddk_sim_tf_pub.launch" Enter
@@ -48,7 +56,7 @@ tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch my_ddk_nav.launch" Enter
 tmux select-layout -t $SESSION_NAME even-horizontal
 
-tmux new-window -t $SESSION_NAME
+tmux new-window -t $SESSION_NAME -n "In"
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; rosservice call /StartMapping"
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; rosservice call /StartExploration"
@@ -58,5 +66,5 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; rosservice call /StartExplor
 tmux new-window -t $SESSION_NAME -n "Kill"
 tmux send-keys -t $SESSION_NAME "tmux kill-session -t ${SESSION_NAME}"
 
-tmux select-window -t $SESSION_NAME:0
+tmux select-window -t $SESSION_NAME:1
 tmux -2 attach-session -t $SESSION_NAME
