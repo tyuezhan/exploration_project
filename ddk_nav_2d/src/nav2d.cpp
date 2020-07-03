@@ -67,6 +67,8 @@ nav2d::nav2d(){
     // mCostLethal = (3.0 - (mRobotRadius / mInflationRadius)) * (double)mCostObstacle;
     mCostLethal = 100;
     mapUpdated = false;
+
+    mPlanner = ddkPlanner();
 }
 
 nav2d::~nav2d(){
@@ -103,6 +105,9 @@ void nav2d::mapSubscriberCB(const nav_msgs::OccupancyGrid &map){
 void nav2d::octomapSubscriberCB(const octomap_msgs::Octomap &octomap){
     ROS_INFO("Octomap update received.");
     mPlanner.updateOctomap(octomap);
+
+    // mPlanner.displayData();
+
 }
 
 void nav2d::poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom){
@@ -229,45 +234,56 @@ void nav2d::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal){
             lastCheck = cycle;
 
             // bool success = false;
-            if(preparePlan()){
-                // ROS_INFO("Enter prepare plan true");
+            // if(preparePlan()){
+            if (true){   
+                ROS_INFO("Enter prepare plan true");
                 GridMap currentMapCopy = mCurrentMap;
-                int result = mExplorationPlanner->findExplorationTarget(&currentMapCopy, mStartPoint, mGoalPoint);
-                ROS_INFO("result: %d", result);
+                // int result = mExplorationPlanner->findExplorationTarget(&currentMapCopy, mStartPoint, mGoalPoint);
+                // ROS_INFO("result: %d", result);
+                Vec3 goalPos;
+                int result = mPlanner.findFrontierNN(pos_, goalPos);
                 switch(result){
                     case EXPL_TARGET_SET:
                         ROS_INFO("EXPL TARGET SET");
                         if (lineTrackerStatus == NAV_ST_IDLE){
-                            unsigned int goal_x = 0, goal_y = 0;
-                            if(mCurrentMap.getCoordinates(goal_x,goal_y,mGoalPoint)){
-                                float worldGoalX = mCurrentMap.getOriginX() + (((double)goal_x+0.5) * mCurrentMap.getResolution());
-                                float worldGoalY = mCurrentMap.getOriginY() + (((double)goal_y+0.5) * mCurrentMap.getResolution());
-                                float worldGoalZ = 0.4;
-                                float yaw;
-                                // unsigned int current_x = (pos_(0) - mCurrentMap.getOriginX()) / mCurrentMap.getResolution();
-	                            // unsigned int current_y = (pos_(1) - mCurrentMap.getOriginY()) / mCurrentMap.getResolution();
-                                // yaw = headTowards(pos_(0), pos_(1), mGoalPoint);
+                            // unsigned int goal_x = 0, goal_y = 0;
+                            // if(mCurrentMap.getCoordinates(goal_x,goal_y,mGoalPoint)){
+                            //     float worldGoalX = mCurrentMap.getOriginX() + (((double)goal_x+0.5) * mCurrentMap.getResolution());
+                            //     float worldGoalY = mCurrentMap.getOriginY() + (((double)goal_y+0.5) * mCurrentMap.getResolution());
+                            //     float worldGoalZ = 0.4;
+                            //     float yaw;
+                            //     // unsigned int current_x = (pos_(0) - mCurrentMap.getOriginX()) / mCurrentMap.getResolution();
+	                        //     // unsigned int current_y = (pos_(1) - mCurrentMap.getOriginY()) / mCurrentMap.getResolution();
+                            //     // yaw = headTowards(pos_(0), pos_(1), mGoalPoint);
 
-                                yaw = atan2(pos_(1)-worldGoalY, pos_(0)-worldGoalX);
-                                yaw += PI;
-                                if(yaw < -PI) yaw += 2*PI;
-                                if(yaw > PI) yaw -= 2*PI;
+                            //     yaw = atan2(pos_(1)-worldGoalY, pos_(0)-worldGoalX);
+                            //     yaw += PI;
+                            //     if(yaw < -PI) yaw += 2*PI;
+                            //     if(yaw > PI) yaw -= 2*PI;
                                 
-                                lineTrackerStatus = NAV_ST_TURNING;
-                                while(true){
-                                    if (lineTrackerStatus == NAV_ST_IDLE) break;
-                                    ROS_INFO("turning");
-                                    if (lineTrackerStatus == NAV_ST_TURNING){
-                                        goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
-                                    }                        
-                                    spinOnce();
-                                    loopRate.sleep();
-                                }
-                                // mStatus = NAV_ST_EXPLORING;
-                                goTo(worldGoalX, worldGoalY, worldGoalZ, yaw, 0.0f, 0.0f, false);
-                                ROS_INFO("goal: %f, %f, %f, %f", worldGoalX, worldGoalY, worldGoalZ, yaw);
-                                mStatus = NAV_ST_EXPLORING;
-                            }
+                            //     lineTrackerStatus = NAV_ST_TURNING;
+                            //     while(true){
+                            //         if (lineTrackerStatus == NAV_ST_IDLE) break;
+                            //         ROS_INFO("turning");
+                            //         if (lineTrackerStatus == NAV_ST_TURNING){
+                            //             goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
+                            //         }                        
+                            //         spinOnce();
+                            //         loopRate.sleep();
+                            //     }
+                            //     // mStatus = NAV_ST_EXPLORING;
+                            //     goTo(worldGoalX, worldGoalY, worldGoalZ, yaw, 0.0f, 0.0f, false);
+                            //     ROS_INFO("goal: %f, %f, %f, %f", worldGoalX, worldGoalY, worldGoalZ, yaw);
+                            //     mStatus = NAV_ST_EXPLORING;
+                            // }
+                            float yaw;
+                            yaw = atan2(pos_(1) - goalPos(1), pos_(0) - goalPos(0));
+                            yaw += PI;
+                            if (yaw < -PI) yaw += 2*PI;
+                            if (yaw > PI) yaw -= 2*PI;
+                            goTo(goalPos(0), goalPos(1), goalPos(2), yaw, 0.0f, 0.0f, false);
+                            ROS_INFO("Moving to goalpos: %f, %f, %f", goalPos(0), goalPos(1), goalPos(2));
+                            mStatus = NAV_ST_EXPLORING;
                         }
                         break;
                     case EXPL_FINISHED:

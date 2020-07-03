@@ -35,8 +35,24 @@ bool ddkPlanner::updateOctomap(octomap_msgs::Octomap msg){
 }
 
 void ddkPlanner::displayData(){
-    for (octomap::OcTree::leaf_iterator it = octoTree->begin_leafs(), end=octoTree->end_leafs(); it!=end; ++it){
-        ROS_INFO("Node center: %f, %f, %f, %f",  it.getX(), it.getY(), it.getZ(), it->getValue());
+    // for (octomap::OcTree::leaf_iterator it = octoTree->begin_leafs(), end=octoTree->end_leafs(); it!=end; ++it){
+    //     ROS_INFO("Node center: %f, %f, %f, %f",  it.getX(), it.getY(), it.getZ(), it->getValue());
+    // }
+    octomap::OcTreeNode* node;
+    node = octoTree->search(0.7345, 0.1, 0.1);
+    if (node == NULL){
+        ROS_INFO("Node is NULL");
+    }else{
+        ROS_INFO("Node info %f, %f, %f, %f", 0.7345, 0.1, 0.1, node->getValue());
+    }
+    node = octoTree->search(0.1, 0.1, 0.1);
+    if (node == NULL) ROS_INFO("NuLL again");
+
+    node = octoTree->search(0.7345, 0.1, 0.1);
+    if (node == NULL){
+        ROS_INFO("NULL 3");
+    } else{
+        ROS_INFO("not null, no update");
     }
 }
 
@@ -91,19 +107,26 @@ bool ddkPlanner::isFrontier(Vec3 pos){
     if(isFree(pos)){
         // remove case that frontier continue to be z axis.
         if (pos(2) >= 0.5) return false;
-        // check neighbors, if exist unknown
-        Vec3 neighbors[26];
-        getNeighbors(pos, neighbors);
-        // ROS_INFO("Check if neighbor has unknown.");
-        for (int i = 0; i < 26; i++){
-            // ROS_INFO("Checking neighbor %d", i);
-            node = octoTree->search((double)neighbors[i](0), (double)neighbors[i](1), (double)neighbors[i](2));
-            if (node == NULL){
-                ROS_INFO("Neighbor of pos %f, %f, %f is unknown", neighbors[i](0), neighbors[i](1), neighbors[i](2));
-                return true;
-            }
+        
+        bool result = searchNearby(pos);
+        if (result){
+            return true;
         }
         return false;
+        // // check neighbors, if exist unknown
+        // Vec3 neighbors[26];
+        // getNeighbors(pos, neighbors);
+        // // ROS_INFO("Check if neighbor has unknown.");
+        // for (int i = 0; i < 26; i++){
+        //     // ROS_INFO("Checking neighbor %d", i);
+        //     node = octoTree->search((double)neighbors[i](0), (double)neighbors[i](1), (double)neighbors[i](2));
+        //     if (node == NULL){
+        //         ROS_INFO("Neighbor of pos %f, %f, %f is unknown", neighbors[i](0), neighbors[i](1), neighbors[i](2));
+        //         return true;
+        //     }
+        // }
+        // ROS_INFO("is frontier return false, pos: %f, %f, %f", pos(0), pos(1), pos(2));
+        // return false;
     }else{
         ROS_INFO("is frontier return false");
         return false;
@@ -113,7 +136,7 @@ bool ddkPlanner::isFrontier(Vec3 pos){
 bool ddkPlanner::isInMap(Vec3 pos){
     // if (pos(0) < minX || pos(0) > maxX) return false;
     // if (pos(1) < minY || pos(1) > maxY) return false;
-    if (pos(2) < 0 || pos(1) > 0.5) return false;
+    if (pos(2) <= 0.1 || pos(2) >= 0.5) return false;
     return true;
 }
 
@@ -178,6 +201,49 @@ void ddkPlanner::getNeighbors(Vec3 currentPos, Vec3* neighbors){
     // return neighbors;
 }
 
+// Search if exist unknown in nearby area
+bool ddkPlanner::searchNearby(Vec3 pos){
+    float x = pos(0);
+    float y = pos(1);
+    float z = pos(2);
+    octomap::OcTreeNode* node;
+    for (int i = -2; i < 2; i++){
+        for (int j = -2; j < 2; j++){
+            for (int k = -1; k < 1; k++){
+                if (i!=0 && j!=0 && k!=0){
+                    if (0 < z+k*resolution && z+k*resolution < 0.5){
+                        
+                    }
+                    node = octoTree->search(x+i*resolution, y+j*resolution, z+k*resolution);
+                    if (node == NULL){
+                        ROS_INFO("Find unknown region from pos: %f, %f, %f. Unknown region is: %f, %f, %f", x, y, z, x+i*resolution, y+j*resolution, z+k*resolution);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+void ddkPlanner::getAdjacent(Vec3 currentPos, Vec3* adjacent){
+    float x = currentPos(0);
+    float y = currentPos(1);
+    float z = currentPos(2);
+    Vec3 neighbor0(x-resolution, y, z);
+    Vec3 neighbor1(x+resolution, y, z);
+    Vec3 neighbor2(x, y-resolution, z);
+    Vec3 neighbor3(x, y+resolution, z);
+    Vec3 neighbor4(x, y, z-resolution);
+    Vec3 neighbor5(x, y, z+resolution);
+    adjacent[0] = neighbor0;
+    adjacent[1] = neighbor1;
+    adjacent[2] = neighbor2;
+    adjacent[3] = neighbor3;
+    adjacent[4] = neighbor4;
+    adjacent[5] = neighbor5;
+}
+
 
 int ddkPlanner::findFrontierNN(Vec3 startPos, Vec3 &goalPos){
     ROS_INFO("start find frontiers.");
@@ -193,6 +259,8 @@ int ddkPlanner::findFrontierNN(Vec3 startPos, Vec3 &goalPos){
     std::vector<Vec3>::iterator it;
     while (!queue.empty()){
         currentPos = queue.front();
+        currentPos = posInMap(currentPos);
+        // ROS_INFO("current pos: %f, %f, %f", currentPos(0), currentPos(1), currentPos(2));
         queue.pop();
         checkCount ++;
         //Check if it is frontier
@@ -203,13 +271,13 @@ int ddkPlanner::findFrontierNN(Vec3 startPos, Vec3 &goalPos){
             break;
 
         }else{
-            Vec3 neighbors[26];
-            getNeighbors(currentPos, neighbors);
-            for (int i = 0; i < 26; i++){
-                it = std::find(checkedPos.begin(), checkedPos.end(), neighbors[i]);
-                if (it == checkedPos.end() && isFree(neighbors[i]) && isInMap(neighbors[i])){       
-                    queue.push(neighbors[i]);
-                    checkedPos.push_back(neighbors[i]);
+            Vec3 adjacent[6];
+            getAdjacent(currentPos, adjacent);
+            for (int i = 0; i < 6; i++){
+                it = std::find(checkedPos.begin(), checkedPos.end(), adjacent[i]);
+                if (it == checkedPos.end() && isFree(adjacent[i]) && isInMap(adjacent[i])){       
+                    queue.push(adjacent[i]);
+                    checkedPos.push_back(adjacent[i]);
                 }
             }
         }
@@ -227,5 +295,6 @@ int ddkPlanner::findFrontierNN(Vec3 startPos, Vec3 &goalPos){
     }
 
 }
+
 
 

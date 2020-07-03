@@ -24,7 +24,8 @@ class ddkPlanner{
         void displayData();
         int findFrontierNN(Vec3 startPos, Vec3 &goalPos);
         void getNeighbors(Vec3 currentPos, Vec3* neighbors);
-
+        void getAdjacent(Vec3 currentPos, Vec3* adjacent);
+        bool searchNearby(Vec3 pos);
     private:
 
         octomap::OcTree* octoTree;
