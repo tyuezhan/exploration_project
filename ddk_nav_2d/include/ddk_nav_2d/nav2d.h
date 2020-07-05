@@ -4,7 +4,10 @@
 #include <actionlib/client/simple_action_client.h>
 #include <pluginlib/class_loader.h>
 #include <tf/transform_listener.h>
+
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
+#include <nav_msgs/GetPlan.h>
 
 #include <ddk_nav_2d/GridMap.h>
 #include <ddk_nav_2d/commands.h>
@@ -12,6 +15,8 @@
 #include <ddk_nav_2d/MapInflationTool.h>
 
 #include <Eigen/Geometry>
+#include <Eigen/StdVector>
+#include <Eigen/Core>
 
 // include action
 #include <ddk_nav_2d/ExploreAction.h>
@@ -26,6 +31,9 @@
 #include <octomap_msgs/Octomap.h>
 #include <octomap/octomap.h>
 #include <ddk_nav_2d/ddkPlanner.h>
+
+// #include <ewok/polynomial_3d_optimization.h>
+// #include <ewok/uniform_bspline_3d_optimization.h>
 
 
 typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
@@ -61,7 +69,15 @@ public:
     bool getMapIndex();
     bool preparePlan();
 
+    //replanning
+    // bool getJpsTraj(const double& traj_time, const Eigen::Affine3f& o_w_transform, geometry_msgs::PoseStamped& min_cost_pt);
+    bool getJpsTraj(const double& traj_time, geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped& goal);
+    void updateTrackingPath(const Eigen::Vector4d& limits, const geometry_msgs::Point& start, ewok::PolynomialTrajectory3D<10>::Ptr& traj);
+
+    
+    //3D
     ddkPlanner mPlanner;
+
 private:
 
     int mStatus;
@@ -105,11 +121,11 @@ private:
     void tracker_done_callback(const actionlib::SimpleClientGoalState& state, const kr_tracker_msgs::LineTrackerResultConstPtr& result);
     ClientType* line_tracker_min_jerk_client_;
 
-    // Services
+    // Services client
     ros::ServiceClient srv_transition_;
     std::string active_tracker_;
     std::string line_tracker_min_jerk;
-
+    
     // Plan
     std::string mExplorationStrategy;
 	boost::shared_ptr<ExplorationPlanner> mExplorationPlanner;
@@ -123,5 +139,14 @@ private:
     double mCurrentDirection;
 	double mCurrentPositionX;
 	double mCurrentPositionY;
+
+    // replanning
+    ewok::PolynomialTrajectory3D<10>::Ptr local_traj_;
+    ewok::PolynomialTrajectory3D<10>::Ptr orig_global_traj_;
+    ewok::PolynomialTrajectory3D<10>::Ptr global_traj_;
+    ros::ServiceClient jps_service_client_;
+    double lookahead_time_;
+    double max_velocity_, max_acceleration_;
+
 
 };

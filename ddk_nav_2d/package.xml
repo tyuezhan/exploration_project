@@ -22,6 +22,10 @@
   <build_depend>nav2d_operator</build_depend>
   <build_depend>kr_mav_msgs</build_depend>
   <build_depend>octomap</build_depend>
+  <build_depend>ewok_poly_spline</build_depend>
+  <build_depend>ewok_optimization</build_depend>
+  <build_depend>eigen_conversions</build_depend>
+  <build_depend>ewok_ring_buffer</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>message_runtime</run_depend>
@@ -35,5 +39,9 @@
   <run_depend>nav2d_operator</run_depend>
   <run_depend>kr_mav_msgs</run_depend>
   <run_depend>octomap</run_depend>
-
+  <run_depend>ewok_poly_spline</run_depend>
+  <run_depend>ewok_optimization</run_depend>
+  <run_depend>eigen_conversions</run_depend>
+  <run_depend>ewok_ring_buffer</run_depend>
 </package>
+

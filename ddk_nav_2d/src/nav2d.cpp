@@ -66,6 +66,15 @@ nav2d::nav2d(){
     // mCostLethal = (3.0 - (mRobotRadius / mInflationRadius)) * (double)mCostObstacle;
     mCostLethal = 100;
     mapUpdated = false;
+
+    // replanning
+    // jps_service_client_ = nh.serviceClient<nav_msgs::GetPlan>("jps_plan_service");
+    // nh.param("lookahead_time", lookahead_time_, 3.0);
+    // nh.param("max_velocity", max_velocity_, 0.5);
+    // nh.param("max_acceleration", max_acceleration_, 0.6);
+
+    // Eigen::Vector4d limits(max_velocity_, max_acceleration_, 0, 0);
+
 }
 
 nav2d::~nav2d(){
@@ -244,20 +253,58 @@ void nav2d::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal){
                                 if(yaw < -PI) yaw += 2*PI;
                                 if(yaw > PI) yaw -= 2*PI;
                                 
-                                lineTrackerStatus = NAV_ST_TURNING;
-                                while(true){
-                                    if (lineTrackerStatus == NAV_ST_IDLE) break;
-                                    ROS_INFO("turning");
-                                    if (lineTrackerStatus == NAV_ST_TURNING){
-                                        goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
-                                    }                        
-                                    spinOnce();
-                                    loopRate.sleep();
-                                }
+                                // lineTrackerStatus = NAV_ST_TURNING;
+                                // while(true){
+                                //     if (lineTrackerStatus == NAV_ST_IDLE) break;
+                                //     ROS_INFO("turning");
+                                //     if (lineTrackerStatus == NAV_ST_TURNING){
+                                //         goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
+                                //     }                        
+                                //     spinOnce();
+                                //     loopRate.sleep();
+                                // }
+                                // // mStatus = NAV_ST_EXPLORING;
+                                // goTo(worldGoalX, worldGoalY, worldGoalZ, yaw, 0.0f, 0.0f, false);
+                                // ROS_INFO("goal: %f, %f, %f, %f", worldGoalX, worldGoalY, worldGoalZ, yaw);
                                 // mStatus = NAV_ST_EXPLORING;
-                                goTo(worldGoalX, worldGoalY, worldGoalZ, yaw, 0.0f, 0.0f, false);
-                                ROS_INFO("goal: %f, %f, %f, %f", worldGoalX, worldGoalY, worldGoalZ, yaw);
-                                mStatus = NAV_ST_EXPLORING;
+
+                                // get current odom transform
+                                tf::StampedTransform transform;
+                                try{
+                                    mTfListener.lookupTransform(mMapFrame, mRobotFrame, Time(0), transform);
+                                }
+                                catch (tf::TransformException &ex){
+                                    ROS_INFO("Couldn't get current odom transform");
+                                    ROS_WARN("%s",ex.what());
+                                    return;
+                                }
+
+                                // Eigen::Affine3d dT_o_w;
+                                // tf::transformTFToEigen(transform, dT_o_w);
+                                // Eigen::Affine3f Tf_odom_to_world = dT_o_w.cast<float>();
+                                double roll = 0.0;
+                                double pitch = 0.0;
+                                tf::Quaternion goalQuaternion = createQuaternionFromRPY(roll, pitch, yaw);
+                                geometry_msgs::PoseStamped goal;
+                                goal.header.frame_id = mMapFrame;
+                                goal.header.stamp = ros::Time::now();
+                                goal.pose.position.x = worldGoalX;
+                                goal.pose.position.y = worldGoalY;
+                                goal.pose.position.z = worldGoalZ;
+                                goal.pose.orientation = goalQuaternion;
+                                double local_time_ = 0.0;
+
+                                geometry_msgs::PoseStamped start;
+                                tf::Quaternion startQuaternion = createQuaternionFromRPY(roll, pitch, yaw_);
+                                start.header.frame_id = mMapFrame;
+                                start.header.stamp = ros::Time::now();
+                                start.pose.position.x = pos_(0);
+                                start.pose.position.y = pos_(1);
+                                start.pose.position.z = pos_(2);
+                                start.pose.orientation = startQuaternion;
+                                // bool ret = getJpsTraj(local_time_, Tf_odom_to_world, min_cost_pt);
+
+
                             }
                         }
                         break;
@@ -412,3 +459,164 @@ bool nav2d::preparePlan(){
 }
 
 
+// bool nav2d::getJpsTraj(const double& traj_time, const Eigen::Affine3f& o_w_transform, geometry_msgs::PoseStamped& min_cost_pt){
+bool nav2d::getJpsTraj(const double& traj_time, geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped& goal){
+    nav_msgs::GetPlan jps_srv;
+    jps_srv.request.start = start;
+    // jps_srv.request.start = min_cost_pt;
+    // jps_srv.request.start.pose.position.x = o_w_transform.translation()[0];
+    // jps_srv.request.start.pose.position.y = o_w_transform.translation()[1];
+    // jps_srv.request.start.pose.position.z = o_w_transform.translation()[2];
+    jps_srv.request.goal = goal;
+    if (jps_service_client_.call(jps_srv))
+    {
+    ROS_INFO("Successful jps service call");
+
+    /*for(int i = 0; i < jps_srv.response.plan.poses.size(); i++)
+    {
+        geometry_msgs::PoseStamped ps = jps_srv.response.plan.poses[i];
+        path.push_back(Eigen::Vector3d(ps.pose.position.x, ps.pose.position.y, ps.pose.position.z));
+    }*/
+
+    if(jps_srv.response.plan.poses.size()==0)
+    {
+        ROS_ERROR("JPS did not return a path");
+        return false;
+    }
+
+    double lookah_join_time = traj_time + lookahead_time_*2.5;
+    Eigen::Vector3d lookah_join = orig_global_traj_->evaluate(lookah_join_time);
+    double traj_lt, lookah_join_lt;
+    size_t traj_seg_num, lookah_join_seg_num;
+    orig_global_traj_->findSegmentNumAndLocalTime(traj_time - 2.0, traj_lt, traj_seg_num);
+    orig_global_traj_->findSegmentNumAndLocalTime(lookah_join_time, lookah_join_lt, lookah_join_seg_num);
+
+    //ROS_WARN("l seg %zu tim %g join seg %zu tim %g", lookah_seg_num, lookah_lt, lookah_join_seg_num, lookah_join_lt);
+
+    visualization_msgs::MarkerArray local_traj;
+    local_traj.markers.resize(orig_global_traj_->numSegments()+1);
+    visualization_msgs::Marker &traj_marker = local_traj.markers[0];
+    traj_marker.header.frame_id = "world";
+    traj_marker.ns = "gt";
+    traj_marker.id = 0;
+    traj_marker.type = visualization_msgs::Marker::POINTS;
+    traj_marker.action = visualization_msgs::Marker::MODIFY;
+    traj_marker.scale.x = 0.01;
+    traj_marker.scale.y = 0.01;
+    traj_marker.scale.z = 0.01;
+    traj_marker.color.a = 1.0;
+    traj_marker.lifetime = ros::Duration(0);
+    traj_marker.color.r = 1;
+    traj_marker.color.g = 0;
+    traj_marker.color.b = 1;
+
+    //local_traj.markers[0].points.reserve(jps_srv.response.plan.poses.size());
+    for(int i = 0; i < jps_srv.response.plan.poses.size(); i++)
+    {
+        geometry_msgs::PoseStamped ps = jps_srv.response.plan.poses[i];
+        //path.push_back(Eigen::Vector3d(ps.pose.position.x, ps.pose.position.y, ps.pose.position.z));
+        local_traj.markers[0].points.push_back(ps.pose.position);
+    }
+
+    //Add connecting path from jps to lookah_join point
+    geometry_msgs::Point jps_goal = local_traj.markers[0].points.back();
+    geometry_msgs::Point jps_start = local_traj.markers[0].points.front();
+
+    std::vector<geometry_msgs::Point>::iterator it = local_traj.markers[0].points.begin();
+    if(local_traj.markers[0].points.size() > 2){
+        it += 1;
+        jps_start = *it; //Take a point slightly front to avoid going back
+    }
+
+    float diff_x = lookah_join[0] - jps_goal.x;
+    float diff_y = lookah_join[1] - jps_goal.y;
+    float diff_z = lookah_join[2] - jps_goal.z;
+    int num_steps = int(sqrt(diff_x*diff_x+diff_y*diff_y+diff_z*diff_z)/0.2);
+    geometry_msgs::Point interm_pt; //TODO instead use vector and direction
+    for (int i = 1; i < num_steps; i++)
+    {
+        interm_pt.x = diff_x*i/num_steps + jps_goal.x;
+        interm_pt.y = diff_y*i/num_steps + jps_goal.y;
+        interm_pt.z = diff_z*i/num_steps + jps_goal.z;
+        local_traj.markers[0].points.push_back(interm_pt);
+    }
+
+    float dt = 0.3;
+    ROS_WARN("Get removed seg traj %d %d", local_traj.markers.size(), orig_global_traj_->numSegments());
+    orig_global_traj_->getRemovedSegmentTraj(local_traj, traj_lt, traj_seg_num, lookah_join_lt, lookah_join_seg_num, "gt", Eigen::Vector3d(1,0,1), dt);
+
+    //global_traj_marker_pub_.publish(local_traj);
+
+    Eigen::Vector4d limits(max_velocity_, 0, 0, 0);
+    ewok::Polynomial3DOptimization<10> to(limits*0.6);
+    ewok::Polynomial3DOptimization<10>::Vector3Array path;
+    for (int i=1; i<local_traj.markers.size();i++)
+    {
+        for (int j=0; j<local_traj.markers[i].points.size();j++)
+        {
+        geometry_msgs::Point pt = local_traj.markers[i].points[j];
+        path.push_back(Eigen::Vector3d(pt.x, pt.y, pt.z));
+        }
+    }
+
+    local_traj_ = to.computeTrajectory(path);
+
+    /*
+    visualization_msgs::MarkerArray local_marker;
+    local_traj_->getVisualizationMarkerArray(local_marker, "gt", Eigen::Vector3d(1,0,1));
+    global_traj_marker_pub_.publish(local_marker);
+    */
+
+    updateTrackingPath(limits, jps_start, local_traj_);
+    return true;
+    }
+    else
+    {
+    ROS_ERROR("Failed to jps call service"); //TODO handle service not present, planning errors case properly
+    return false;
+    }
+}
+
+
+void nav2d::updateTrackingPath(const Eigen::Vector4d& limits, const geometry_msgs::Point& start, ewok::PolynomialTrajectory3D<10>::Ptr& traj)
+{
+  global_traj_ = traj;
+
+  visualization_msgs::MarkerArray traj_marker;
+  traj->getVisualizationMarkerArray(traj_marker, "gt", Eigen::Vector3d(1,0,1));
+  global_traj_marker_pub_.publish(traj_marker);
+
+  //Get initial traj yaw
+  std::vector<geometry_msgs::Point> traj_pts = traj_marker.markers[0].points;
+
+  initial_traj_yaw_ = 0.0;
+  if(traj_pts.size()>2)
+  {
+    geometry_msgs::Point pt1 = traj_pts[0];
+    geometry_msgs::Point pt2 = traj_pts[1];
+    initial_traj_yaw_ = std::atan2(pt2.y - pt1.y, pt2.x - pt1.x);
+  }
+  ROS_WARN("Initial yaw %g", angles::to_degrees(initial_traj_yaw_));
+
+  Eigen::Vector3d st(start.x, start.y, start.z);
+  spline_optimization_.reset(new ewok::UniformBSpline3DOptimization<6>(st, traj, dt_));
+  float dt = 0.0;
+  for (int i = 0; i < num_opt_points_; i++)
+  {
+    Eigen::Vector3d lookah = traj->evaluate(dt);
+    spline_optimization_->addControlPoint(lookah);
+    //spline_optimization_->addControlPoint(st);
+    dt += 0.05;
+  }
+
+  spline_optimization_->setNumControlPointsOptimized(num_opt_points_);
+  spline_optimization_->setDistanceBuffer(edrb_);
+  spline_optimization_->setDistanceThreshold(distance_threshold_);
+  spline_optimization_->setLimits(limits);
+
+  path_initialized_ = true;
+  path_tracking_ = true;
+  traj_reset_time_ = 0.0;
+
+  ROS_INFO("Received new waypoints, num segments");// %d", traj_marker.markers.size());
+}

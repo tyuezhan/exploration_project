@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ddk_nav_2d)
 
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+add_definitions(-std=c++11 -g -O3 -ftree-vectorize -march=native)
+
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -14,9 +17,17 @@ find_package(catkin REQUIRED COMPONENTS
   nav2d_msgs
   kr_mav_msgs
   kr_tracker_msgs
+  ewok_poly_spline
+  ewok_optimization
+  ewok_ring_buffer
+  eigen_conversions
 )
 
+find_package(Eigen3 REQUIRED)
+find_package(SuiteSparse REQUIRED)
 find_package(octomap REQUIRED)
+
+
 ################################################
 ## Declare ROS messages, services and actions ##
 ################################################
@@ -63,6 +74,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include ${catkin_INCLUDE_DIRS})
+include_directories(${EIGEN3_INCLUDE_DIR} ${CHOLMOD_INCLUDE_DIR})
 
 ## Declare a cpp library
 add_library(MapInflationTool src/MapInflationTool.cpp)
@@ -94,7 +106,8 @@ target_link_libraries(navigator nav2d ${catkin_LIBRARIES})
 target_link_libraries(nav2d MapInflationTool ${catkin_LIBRARIES})
 target_link_libraries(navigator ddkPlanner ${catkin_LIBRARIES})
 target_link_libraries(ddkPlanner octomap ${catkin_LIBRARIES})
-
+target_link_libraries(nav2d
+   ${catkin_LIBRARIES} ${CHOLMOD_LIBRARY} nlopt)
 #############
 ## Install ##
 #############
