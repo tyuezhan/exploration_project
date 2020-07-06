@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   message_generation
   tf
+  tf_conversions
   pluginlib
   actionlib
   actionlib_msgs
@@ -21,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   ewok_optimization
   ewok_ring_buffer
   eigen_conversions
+  visualization_msgs
 )
 
 find_package(Eigen3 REQUIRED)
@@ -82,7 +84,7 @@ add_library(nav2d src/nav2d.cpp)
 add_library(ddkPlanner src/ddkPlanner.cpp)
 
 ## Declare a cpp executable
-add_executable(navigator src/navigator.cpp src/nav2d.cpp)
+add_executable(navigator src/navigator.cpp)
 add_executable(set_goal_client src/set_goal_client.cpp)
 add_executable(explore_client src/explore_client.cpp)
 add_executable(get_map_client src/get_map_client.cpp)
@@ -104,10 +106,9 @@ target_link_libraries(get_map_client ${catkin_LIBRARIES})
 target_link_libraries(localize_client ${catkin_LIBRARIES})
 target_link_libraries(navigator nav2d ${catkin_LIBRARIES})
 target_link_libraries(nav2d MapInflationTool ${catkin_LIBRARIES})
-target_link_libraries(navigator ddkPlanner ${catkin_LIBRARIES})
+target_link_libraries(nav2d ddkPlanner ${catkin_LIBRARIES})
 target_link_libraries(ddkPlanner octomap ${catkin_LIBRARIES})
-target_link_libraries(nav2d
-   ${catkin_LIBRARIES} ${CHOLMOD_LIBRARY} nlopt)
+target_link_libraries(nav2d ${CHOLMOD_LIBRARY} nlopt)
 #############
 ## Install ##
 #############

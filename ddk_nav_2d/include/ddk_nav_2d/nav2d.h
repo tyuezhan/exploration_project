@@ -4,6 +4,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <pluginlib/class_loader.h>
 #include <tf/transform_listener.h>
+#include <tf_conversions/tf_eigen.h>
 
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
@@ -32,14 +33,19 @@
 #include <octomap/octomap.h>
 #include <ddk_nav_2d/ddkPlanner.h>
 
-// #include <ewok/polynomial_3d_optimization.h>
-// #include <ewok/uniform_bspline_3d_optimization.h>
+#include <ewok/polynomial_3d_optimization.h>
+#include <ewok/uniform_bspline_3d_optimization.h>
+
+#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
 
 
 typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
 typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreActionServer;
 typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
 
+
+const int POW = 6;
 
 
 class nav2d{
@@ -70,8 +76,8 @@ public:
     bool preparePlan();
 
     //replanning
-    // bool getJpsTraj(const double& traj_time, const Eigen::Affine3f& o_w_transform, geometry_msgs::PoseStamped& min_cost_pt);
-    bool getJpsTraj(const double& traj_time, geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped& goal);
+    bool getJpsTraj(const double& traj_time, const Eigen::Affine3f& o_w_transform, geometry_msgs::PoseStamped& min_cost_pt);
+    // bool getJpsTraj(const double& traj_time, geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped& goal);
     void updateTrackingPath(const Eigen::Vector4d& limits, const geometry_msgs::Point& start, ewok::PolynomialTrajectory3D<10>::Ptr& traj);
 
     
@@ -144,9 +150,16 @@ private:
     ewok::PolynomialTrajectory3D<10>::Ptr local_traj_;
     ewok::PolynomialTrajectory3D<10>::Ptr orig_global_traj_;
     ewok::PolynomialTrajectory3D<10>::Ptr global_traj_;
+    ewok::UniformBSpline3DOptimization<6>::Ptr spline_optimization_;
+    ewok::EuclideanDistanceRingBuffer<POW>::Ptr edrb_;
     ros::ServiceClient jps_service_client_;
     double lookahead_time_;
     double max_velocity_, max_acceleration_;
-
-
+    ros::Publisher global_traj_marker_pub_;
+    double initial_traj_yaw_;
+    double dt_;
+    int num_opt_points_;
+    double edrb_size_;
+    double resolution_;
+    double distance_threshold_;
 };
