@@ -252,57 +252,12 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: false
-      Name: Map
+      Enabled: true
+      Name: Projected2DMap
       Topic: /projected_map
       Unreliable: false
       Use Timestamp: false
-      Value: false
-    - Alpha: 1
-      Class: rviz/GridCells
-      Color: 0; 0; 255
-      Enabled: false
-      Name: Desired
-      Topic: /Operator/desired
-      Value: false
-    - Alpha: 1
-      Class: rviz/GridCells
-      Color: 25; 255; 0
-      Enabled: false
-      Name: Corrected
-      Topic: /Operator/route
-      Value: false
-    - Alpha: 1
-      Class: rviz/GridCells
-      Color: 255; 0; 255
-      Enabled: false
-      Name: Path
-      Topic: /Navigator/plan
-      Value: false
-    - Class: rviz/Marker
-      Enabled: false
-      Marker Topic: /Mapper/vertices
-      Name: PoseGraph:Nodes
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
-    - Class: rviz/Marker
-      Enabled: false
-      Marker Topic: /Mapper/edges
-      Name: PoseGraph:Edges
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
-    - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /occupied_cells_vis_array
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -321,7 +276,7 @@ Visualization Manager:
       Max Intensity: 4096
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: PointCloud2
+      Name: DepthCamera
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -404,5 +359,5 @@ Window Geometry:
   Waypoint Navigation:
     collapsed: false
   Width: 1871
-  X: 1969
+  X: 689
   Y: 27

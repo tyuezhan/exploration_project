@@ -1,23 +1,23 @@
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/server/simple_action_server.h>
+#include <pluginlib/class_loader.h>
 #include <ros/ros.h>
 #include <std_srvs/Trigger.h>
-#include <actionlib/server/simple_action_server.h>
-#include <actionlib/client/simple_action_client.h>
-#include <pluginlib/class_loader.h>
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 
+#include <nav_msgs/GetPlan.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
-#include <nav_msgs/GetPlan.h>
 
-#include <ddk_nav_2d/GridMap.h>
-#include <ddk_nav_2d/commands.h>
 #include <ddk_nav_2d/GetFirstMapAction.h>
+#include <ddk_nav_2d/GridMap.h>
 #include <ddk_nav_2d/MapInflationTool.h>
+#include <ddk_nav_2d/commands.h>
 
+#include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <Eigen/StdVector>
-#include <Eigen/Core>
 
 // include action
 #include <ddk_nav_2d/ExploreAction.h>
@@ -29,145 +29,125 @@
 #include <kr_tracker_msgs/LineTrackerAction.h>
 #include <kr_tracker_msgs/Transition.h>
 
-#include <octomap_msgs/Octomap.h>
-#include <octomap/octomap.h>
 #include <ddk_nav_2d/ddkPlanner.h>
+#include <octomap/octomap.h>
+#include <octomap_msgs/Octomap.h>
 
-#include <ewok/polynomial_3d_optimization.h>
-#include <ewok/uniform_bspline_3d_optimization.h>
-
-#include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <kr_replanning_msgs/TrackPathAction.h>
 
-
-typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
-typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreActionServer;
-typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
-
-
-const int POW = 6;
-
-
-class nav2d{
+class Nav2D {
 
 public:
+  Nav2D();
+  ~Nav2D();
 
-    nav2d();
-    ~nav2d();
+  typedef Eigen::Vector3f Vec3;
+  typedef Eigen::Quaternionf Quat;
 
-    typedef Eigen::Vector3f    Vec3;
-    typedef Eigen::Quaternionf Quat;
-    Vec3 pos() { return pos_; }
-    Vec3 vel() { return vel_; }
+  Vec3 pos() { return pos_; }
+  Vec3 vel() { return vel_; }
+  float yaw() { return yaw_; }
 
-    float yaw() { return yaw_; } 
+  // Subscriber call back function
+  void mapSubscriberCB(const nav_msgs::OccupancyGrid &map);
+  void poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom);
 
-    ros::Subscriber mapSubscriber;
-    ros::Subscriber poseSubscriber;
+  // Action Server goal callback
+  void receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal);
+  void receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal);
 
-    void mapSubscriberCB(const nav_msgs::OccupancyGrid &map);
-    void poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom);
-    void receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal);
-	void receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal);
-    
-    bool goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative);
-    bool transition(const std::string &tracker_str);
-    bool getMapIndex();
-    bool preparePlan();
+  // Line tracker goto
+  bool goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative);
+  
+  // Tracker transition
+  bool transition(const std::string &tracker_str);
+  
+  // Tracker done callback
+  void trackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result);
+  
+  // 2D exploration
+  bool getMapIndex();
+  bool preparePlan();
 
-    //replanning
-    bool getJpsTraj(const double& traj_time, const Eigen::Affine3f& o_w_transform, geometry_msgs::PoseStamped& min_cost_pt);
-    // bool getJpsTraj(const double& traj_time, geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped& goal);
-    void updateTrackingPath(const Eigen::Vector4d& limits, const geometry_msgs::Point& start, ewok::PolynomialTrajectory3D<10>::Ptr& traj);
+  // local replanning
+  bool getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt);
+  bool trackPath(nav_msgs::Path planned_path);
+  void trackPathDoneCB(const actionlib::SimpleClientGoalState &state, const kr_replanning_msgs::TrackPathResultConstPtr &result);
 
-    
-    //3D
-    ddkPlanner mPlanner;
+  // 3D exploration
+  ddkPlanner mPlanner;
 
 private:
+  typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
+  typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreActionServer;
+  typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
+  typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> ClientType;
+  typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> trackPathClientType;
 
-    int mStatus;
-    int lineTrackerStatus;
-    Vec3 pos_, vel_;
-    float yaw_, yaw_dot_;
-    Quat odom_q_, imu_q_;
-    ros::Time last_odom_t_;
+  // Subscribers
+  ros::Subscriber map_subscriber_;
+  ros::Subscriber pose_subscriber_;
 
-    // Map related things
-    MapInflationTool mInflationTool;
+  // Status param
+  int node_status_;
+  int line_tracker_Status_;
+  int track_path_status_;
 
-    bool mapUpdated;
-    bool poseUpdated;
-    GridMap mCurrentMap;
-    nav_msgs::Odometry currentPose;
+  //  Pose param
+  Vec3 pos_, vel_;
+  float yaw_, yaw_dot_;
+  Quat odom_q_, imu_q_;
+  ros::Time last_odom_t_;
 
-    tf::TransformListener mTfListener;
-    std::string mMapFrame;
-	std::string mRobotFrame;
+  // Map related things
+  // MapInflationTool inflation_tool_;
 
-    // Planning related param
-	double mFrequency;
-	double mInflationRadius;
-	double mRobotRadius;
-	unsigned int mCellInflationRadius;
-	unsigned int mCellRobotRadius;
+  // 2D map related param
+  bool map_updated_;
+  bool pose_updated_;
+  GridMap current_map_;
 
-    signed char mCostObstacle;
-	signed char mCostLethal;
+  // TF param
+  tf::TransformListener tf_Listener_;
+  std::string map_frame_;
+  std::string robot_frame_;
 
-    // action Server
-    GetFirstMapActionServer* mGetFirstMapActionServer;
-    ExploreActionServer* mExploreActionServer;
-    
-    std::string mExploreActionTopic;
-	std::string mGetMapActionTopic;
+  // 2D frontier exploration related param
+  std::string exploration_strategy_;
+  boost::shared_ptr<ExplorationPlanner> exploration_planner_;
+  PlanLoader *plan_loader_;
 
-    // action Client 
-    typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> ClientType;
-    void tracker_done_callback(const actionlib::SimpleClientGoalState& state, const kr_tracker_msgs::LineTrackerResultConstPtr& result);
-    ClientType* line_tracker_min_jerk_client_;
+  double min_replanning_period_;
+  double max_replanning_period_;
+  unsigned int goal_point_;
+  unsigned int start_point_;
+  double frequency_;
+  double inflation_radius_;
+  double robot_radius_;
+  unsigned int cell_inflation_radius_;
+  unsigned int cell_robot_radius_;
+  signed char cost_obstacle_;
+  signed char cost_lethal_;
 
-    // Services client
-    ros::ServiceClient srv_transition_;
-    std::string active_tracker_;
-    std::string line_tracker_min_jerk;
-    
-    // Plan
-    std::string mExplorationStrategy;
-	boost::shared_ptr<ExplorationPlanner> mExplorationPlanner;
-    PlanLoader* mPlanLoader;
-    double mMinReplanningPeriod;
-	double mMaxReplanningPeriod;
-    unsigned int mGoalPoint;
-	unsigned int mStartPoint;
 
-    // delete these three later?
-    double mCurrentDirection;
-	double mCurrentPositionX;
-	double mCurrentPositionY;
+  // action Server and param:  get first map server; exploration server
+  GetFirstMapActionServer *get_first_map_action_server_;
+  ExploreActionServer *explore_action_server_;
 
-    // replanning
-    ewok::PolynomialTrajectory3D<10>::Ptr local_traj_;
-    ewok::PolynomialTrajectory3D<10>::Ptr orig_global_traj_;
-    ewok::PolynomialTrajectory3D<10>::Ptr global_traj_;
-    ewok::UniformBSpline3DOptimization<6>::Ptr spline_optimization_;
-    ewok::EuclideanDistanceRingBuffer<POW>::Ptr edrb_;
-    ros::ServiceClient jps_service_client_;
-    double lookahead_time_;
-    double max_velocity_, max_acceleration_;
-    ros::Publisher global_traj_marker_pub_;
-    double initial_traj_yaw_;
-    double dt_;
-    int num_opt_points_;
-    double edrb_size_;
-    double resolution_;
-    double distance_threshold_;
+  std::string explore_action_topic_;
+  std::string get_map_action_topic_;
 
-    typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> trackPathClientType;
-    trackPathClientType* track_path_action_client_;
-    void track_path_done_callback(const actionlib::SimpleClientGoalState& state, const kr_replanning_msgs::TrackPathResultConstPtr& result);
-    int trackPathStatus;
-    bool trackPath(nav_msgs::Path plannedPath);
+  // action Client: line tracker; 
+  ClientType *line_tracker_min_jerk_client_;
+
+  // Services client and param: tracker transition; jps planner
+  ros::ServiceClient srv_transition_;
+  std::string active_tracker_;
+  std::string line_tracker_min_jerk_;
+
+  ros::ServiceClient jps_service_client_;
+  trackPathClientType *track_path_action_client_;
 };

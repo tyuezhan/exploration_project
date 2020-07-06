@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ddk_nav_2d)
 
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 add_definitions(-std=c++11 -g -O3 -ftree-vectorize -march=native)
 
 ## Find catkin macros and libraries
@@ -18,16 +17,12 @@ find_package(catkin REQUIRED COMPONENTS
   nav2d_msgs
   kr_mav_msgs
   kr_tracker_msgs
-  ewok_poly_spline
-  ewok_optimization
-  ewok_ring_buffer
   eigen_conversions
   visualization_msgs
   kr_replanning_msgs
 )
 
 find_package(Eigen3 REQUIRED)
-find_package(SuiteSparse REQUIRED)
 find_package(octomap REQUIRED)
 
 

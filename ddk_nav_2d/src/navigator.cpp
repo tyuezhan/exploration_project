@@ -8,7 +8,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle n;
 	
 	// RobotNavigator robNav;
-	nav2d nav2D;
+	Nav2D Nav2D;
 
 	ros::spin();
 	return 0;
