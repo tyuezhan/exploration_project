@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   ewok_ring_buffer
   eigen_conversions
   visualization_msgs
+  kr_replanning_msgs
 )
 
 find_package(Eigen3 REQUIRED)

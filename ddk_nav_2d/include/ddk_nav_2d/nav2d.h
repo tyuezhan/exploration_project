@@ -39,6 +39,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
+#include <kr_replanning_msgs/TrackPathAction.h>
+
 
 typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
 typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreActionServer;
@@ -162,4 +164,10 @@ private:
     double edrb_size_;
     double resolution_;
     double distance_threshold_;
+
+    typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> trackPathClientType;
+    trackPathClientType* track_path_action_client_;
+    void track_path_done_callback(const actionlib::SimpleClientGoalState& state, const kr_replanning_msgs::TrackPathResultConstPtr& result);
+    int trackPathStatus;
+    bool trackPath(nav_msgs::Path plannedPath);
 };

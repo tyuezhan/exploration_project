@@ -43,7 +43,7 @@ nav2d::nav2d(){
     mStatus = NAV_ST_IDLE;
     lineTrackerStatus = NAV_ST_IDLE;
     line_tracker_min_jerk_client_= new ClientType(nh, "ddk/trackers_manager/line_tracker_min_jerk/LineTracker", true);
-    float serverWaitTimeout;
+    float serverWaitTimeout = 30.0;
     nh.param("Server_wait_timeout", serverWaitTimeout, 0.5f);
     if (!line_tracker_min_jerk_client_->waitForServer(ros::Duration(serverWaitTimeout))) {
     ROS_ERROR("LineTrackerMinJerk server not found.");
@@ -84,6 +84,12 @@ nav2d::nav2d(){
 
     nh.param("distance_threshold", distance_threshold_, 0.1);
     edrb_.reset(new ewok::EuclideanDistanceRingBuffer<POW>(resolution_, edrb_size_));
+
+    trackPathStatus = NAV_ST_IDLE;
+    track_path_action_client_ = new trackPathClientType(nh, "ddk/TrackPathAction", true);
+    if (!track_path_action_client_->waitForServer(ros::Duration(serverWaitTimeout))) {
+    ROS_ERROR("track path action server not found.");
+    }
 }
 
 nav2d::~nav2d(){
@@ -316,8 +322,12 @@ void nav2d::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal){
                                 Eigen::Affine3f Tf_odom_to_world = dT_o_w.cast<float>();
 
                                 bool ret = getJpsTraj(local_time_, Tf_odom_to_world, goal);
-                                if (ret) ROS_INFO("get jps traj return true");
+                                if (ret){
+                                    ROS_INFO("get jps traj return true");
+                                }
                                 if (!ret) ROS_INFO("get jps return false");
+
+
 
                             }
                         }
@@ -409,11 +419,25 @@ bool nav2d::goTo(float x, float y, float z, float yaw, float v_des, float a_des,
     return transition(line_tracker_min_jerk);
 }
 
+bool nav2d::trackPath(nav_msgs::Path plannedPath){
+    kr_replanning_msgs::TrackPathGoal pathGoal;
+    pathGoal.path = plannedPath;
+    track_path_action_client_->sendGoal(pathGoal, boost::bind(&nav2d::track_path_done_callback, this, _1, _2), trackPathClientType::SimpleActiveCallback(), trackPathClientType::SimpleFeedbackCallback());
+    trackPathStatus = NAV_ST_NAVIGATING;
+
+    return true;
+}
+
 
 void nav2d::tracker_done_callback(const actionlib::SimpleClientGoalState& state, const kr_tracker_msgs::LineTrackerResultConstPtr& result){
     ROS_INFO("Goal reached.");
     lineTrackerStatus = NAV_ST_IDLE;
 };
+
+void nav2d::track_path_done_callback(const actionlib::SimpleClientGoalState& state, const kr_replanning_msgs::TrackPathResultConstPtr& result){
+    ROS_INFO("Track Path done.");
+
+}
 
 
 bool nav2d::transition(const std::string &tracker_str) {
@@ -497,6 +521,8 @@ bool nav2d::getJpsTraj(const double& traj_time, const Eigen::Affine3f& o_w_trans
             ROS_ERROR("JPS did not return a path");
             return false;
         }
+        trackPath(jps_srv.response.plan);
+
 
         double lookah_join_time = traj_time + lookahead_time_*2.5;
         Eigen::Vector3d lookah_join = orig_global_traj_->evaluate(lookah_join_time);

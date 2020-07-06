@@ -28,6 +28,7 @@
   <build_depend>eigen_conversions</build_depend>
   <build_depend>ewok_ring_buffer</build_depend>
   <build_depend>visualization_msgs</build_depend>
+  <build_depend>kr_replanning_msgs</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>message_runtime</run_depend>
@@ -47,5 +48,6 @@
   <run_depend>eigen_conversions</run_depend>
   <run_depend>ewok_ring_buffer</run_depend>
   <run_depend>visualization_msgs</run_depend>
+  <run_depend>kr_replanning_msgs</run_depend>
 </package>
 
