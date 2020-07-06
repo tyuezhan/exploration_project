@@ -202,8 +202,8 @@ Visualization Manager:
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
-      Line Style: Lines
-      Line Width: 0.029999999329447746
+      Line Style: Billboards
+      Line Width: 0.05000000074505806
       Name: DMPPath
       Offset:
         X: 0
@@ -225,8 +225,8 @@ Visualization Manager:
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
-      Line Style: Lines
-      Line Width: 0.029999999329447746
+      Line Style: Billboards
+      Line Width: 0.05000000074505806
       Name: JPSPath
       Offset:
         X: 0
@@ -360,31 +360,31 @@ Visualization Manager:
     - Class: waypoint_nav_plugin/WaypointNav
       WaypointsTool:
         default_height: 0
-        frame_id: /world
-        topic: /ddk/waypoints
+        frame_id: world
+        topic: /waypoints
   Value: true
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.988273620605469
+      Distance: 4.746013641357422
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.07540798932313919
-        Y: -0.5258731842041016
-        Z: -0.8722478151321411
+        X: 0.8887373208999634
+        Y: -0.7869608402252197
+        Z: -0.35895073413848877
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7747968435287476
+      Pitch: 0.584797203540802
       Target Frame: base_link
       Value: Orbit (rviz)
-      Yaw: 3.4472827911376953
+      Yaw: 3.1422810554504395
     Saved: ~
 Window Geometry:
   Displays:
