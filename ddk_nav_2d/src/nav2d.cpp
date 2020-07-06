@@ -90,7 +90,7 @@ Nav2D::~Nav2D() {
 }
 
 void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid &map) {
-  ROS_INFO("Map update received.");
+  // ROS_INFO("Map update received.");
   current_map_.update(map);
 
   // if(mCellInflationRadius == 0){
@@ -150,18 +150,18 @@ void Nav2D::receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal)
   ddk_nav_2d::GetFirstMapFeedback f;
 
   // Go straight
-  float distance = 0;
-  while (true) {
-    if (distance >= 2)
-      break;
-    get_first_map_action_server_->publishFeedback(f);
-    if (line_tracker_Status_ == NAV_ST_IDLE) {
-      goTo(1, 0, 0, 0, 0.0f, 0.0f, true);
-      distance += 1;
-    }
-    spinOnce();
-    loop_rate.sleep();
-  }
+  // float distance = 0;
+  // while (true) {
+  //   if (distance >= 2)
+  //     break;
+  //   get_first_map_action_server_->publishFeedback(f);
+  //   if (line_tracker_Status_ == NAV_ST_IDLE) {
+  //     goTo(1, 0, 0, 0, 0.0f, 0.0f, true);
+  //     distance += 1;
+  //   }
+  //   spinOnce();
+  //   loop_rate.sleep();
+  // }
 
   // Turn 360, get first map
   float rotation = 0;
@@ -217,7 +217,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     // recheck for exploration target
     bool recheck = last_check == 0 ||(recheck_cycles && (cycle - last_check > recheck_cycles));
     bool goal_reached = false;
-    if (line_tracker_Status_ == NAV_ST_IDLE) {
+    if (track_path_status_ == NAV_ST_IDLE) {
       goal_reached = true;
       ROS_INFO("Set goal reached true. can continue explore");
     }
@@ -232,11 +232,15 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
         switch (result) {
         case EXPL_TARGET_SET:
           ROS_INFO("EXPL TARGET SET");
-          if (line_tracker_Status_ == NAV_ST_IDLE) {
+          if (track_path_status_ == NAV_ST_IDLE) {
             unsigned int goal_x = 0, goal_y = 0;
             if (current_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
-              float map_goal_x = current_map_.getOriginX() + (((double)goal_x + 0.5) * current_map_.getResolution());
-              float map_goal_y = current_map_.getOriginY() + (((double)goal_y + 0.5) * current_map_.getResolution());
+              // float map_goal_x = current_map_.getOriginX() + (((double)goal_x + 0.5) * current_map_.getResolution());
+              // float map_goal_y = current_map_.getOriginY() + (((double)goal_y + 0.5) * current_map_.getResolution());
+              // float map_goal_z = 0.4;
+
+              float map_goal_x = 1.0;
+              float map_goal_y = 0.0;
               float map_goal_z = 0.4;
               float yaw;
 
@@ -245,8 +249,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               if (yaw < -PI) yaw += 2 * PI;
               if (yaw > PI) yaw -= 2 * PI;
 
-              line_tracker_Status_ = NAV_ST_TURNING;
-
+              // line_tracker_Status_ = NAV_ST_TURNING;
               // Line Tracker code
               // // Turn head
               // while(true){
@@ -294,6 +297,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               goal.pose.position.z = map_goal_z;
               goal.pose.orientation = goal_quaternion;
 
+              track_path_status_ = NAV_ST_NAVIGATING;
               bool ret = getJpsTraj(local_time, tf_odom_to_world, goal);
               if (ret) {
                 ROS_INFO("get jps traj return true");
@@ -389,6 +393,7 @@ bool Nav2D::trackPath(nav_msgs::Path planned_path) {
       trackPathClientType::SimpleActiveCallback(),
       trackPathClientType::SimpleFeedbackCallback());
   track_path_status_ = NAV_ST_NAVIGATING;
+  ROS_INFO("Send Track Path goal to server.");
   return true;
 }
 
@@ -401,6 +406,7 @@ void Nav2D::trackPathDoneCB(
     const actionlib::SimpleClientGoalState &state,
     const kr_replanning_msgs::TrackPathResultConstPtr &result) {
   ROS_INFO("Track Path done.");
+  track_path_status_ = NAV_ST_IDLE;
 }
 
 bool Nav2D::transition(const std::string &tracker_str) {
