@@ -98,6 +98,9 @@ private:
   ros::Subscriber map_subscriber_;
   ros::Subscriber pose_subscriber_;
 
+  // Publisher
+  ros::Publisher goal_publisher_;
+
   // Status param
   int node_status_;
   int line_tracker_status_;

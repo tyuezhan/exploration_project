@@ -3,8 +3,7 @@ Panels:
     Help Height: 78
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /Projected2DMap1/Status1
+      Expanded: ~
       Splitter Ratio: 0.5408163070678711
     Tree Height: 348
   - Class: rviz/Selection
@@ -339,6 +338,21 @@ Visualization Manager:
       Topic: /ddk/dmp_path_2d
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: Pose
+      Shaft Length: 0.6000000238418579
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow
+      Topic: /navigator/goal_point
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -372,7 +386,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 16.509246826171875
+      Distance: 15.354325294494629
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -387,10 +401,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7897970080375671
+      Pitch: 0.46979692578315735
       Target Frame: base_link
       Value: Orbit (rviz)
-      Yaw: 3.502284288406372
+      Yaw: 3.0872819423675537
     Saved: ~
 Window Geometry:
   Displays:
@@ -410,5 +424,5 @@ Window Geometry:
   Waypoint Navigation:
     collapsed: false
   Width: 1871
-  X: 1969
+  X: 689
   Y: 27

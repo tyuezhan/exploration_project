@@ -16,6 +16,9 @@ Nav2D::Nav2D() {
   map_subscriber_ = nh_.subscribe("ddk/projected_map", 5, &Nav2D::mapSubscriberCB, this);
   pose_subscriber_ = nh_.subscribe("ddk/ground_truth/odom", 10, &Nav2D::poseSubscriberCB, this);
 
+  // Publisher
+  goal_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("navigator/goal_point", 5);
+
   // Load planer
   pnh_.param("min_replanning_period", min_replanning_period_, 5.0);
   pnh_.param("max_replanning_period", max_replanning_period_, 1.0);
@@ -73,7 +76,7 @@ Nav2D::Nav2D() {
   pnh_.param("robot_radius", robot_radius_, 0.2);
   cost_obstacle_ = 100;
   // cost_lethal_ = (3.0 - (robot_radius_ / inflation_radius_)) * (double)cost_obstacle_;
-  cost_lethal_ = 100;
+  cost_lethal_ = 1;
   map_updated_ = false;
 
   // replanning
@@ -110,7 +113,7 @@ void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
 
   if (map_updated_ == false) {
     ROS_INFO("Navigator is now initialized.");
-    cell_robot_radius_ = 10;
+    cell_robot_radius_ = 1;
     current_map_.setLethalCost(cost_lethal_);
   }
   map_updated_ = true;
@@ -157,18 +160,18 @@ void Nav2D::receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal)
   ddk_nav_2d::GetFirstMapFeedback f;
 
   // Go straight
-  // float distance = 0;
-  // while (true) {
-  //   if (distance >= 2)
-  //     break;
-  //   get_first_map_action_server_->publishFeedback(f);
-  //   if (line_tracker_status_ == NAV_ST_IDLE) {
-  //     goTo(1, 0, 0, 0, 0.0f, 0.0f, true);
-  //     distance += 1;
-  //   }
-  //   spinOnce();
-  //   loop_rate.sleep();
-  // }
+  float distance = 0;
+  while (true) {
+    if (distance >= 0.5)
+      break;
+    get_first_map_action_server_->publishFeedback(f);
+    if (line_tracker_status_ == NAV_ST_IDLE) {
+      goTo(0.5, 0, 0, 0, 0.0f, 0.0f, true);
+      distance += 0.5;
+    }
+    spinOnce();
+    loop_rate.sleep();
+  }
 
   // Turn 360, get first map
   float rotation = 0;
@@ -239,16 +242,16 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
         switch (result) {
         case EXPL_TARGET_SET:
           ROS_INFO("EXPL TARGET SET");
-          if (track_path_status_ == NAV_ST_IDLE && traj_tracker_status_ == NAV_ST_IDLE) {
+          if (recheck || track_path_status_ == NAV_ST_IDLE && traj_tracker_status_ == NAV_ST_IDLE && line_tracker_status_ == NAV_ST_IDLE) {
             unsigned int goal_x = 0, goal_y = 0;
             if (current_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
-              // float map_goal_x = current_map_.getOriginX() + (((double)goal_x + 0.5) * current_map_.getResolution());
-              // float map_goal_y = current_map_.getOriginY() + (((double)goal_y + 0.5) * current_map_.getResolution());
-              // float map_goal_z = 0.4;
+              float map_goal_x = current_map_.getOriginX() + (((double)goal_x + 0.5) * current_map_.getResolution());
+              float map_goal_y = current_map_.getOriginY() + (((double)goal_y + 0.5) * current_map_.getResolution());
+              float map_goal_z = 0.4;
 
-              float map_goal_x = 3.0;
-              float map_goal_y = 0.0;
-              float map_goal_z = 0.6;
+              // float map_goal_x = 1.0;
+              // float map_goal_y = 0.0;
+              // float map_goal_z = 0.6;
               float yaw;
 
               yaw = atan2(pos_(1) - map_goal_y, pos_(0) - map_goal_x);
@@ -256,23 +259,27 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               if (yaw < -PI) yaw += 2 * PI;
               if (yaw > PI) yaw -= 2 * PI;
 
-              // line_tracker_status_ = NAV_ST_TURNING;
+
               // Line Tracker code
-              // // Turn head
-              // while(true){
-              //     if (lineTrackerStatus == NAV_ST_IDLE) break;
-              //     ROS_INFO("turning");
-              //     if (lineTrackerStatus == NAV_ST_TURNING){
-              //         goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
-              //     }
-              //     spinOnce();
-              //     loopRate.sleep();
-              // }
+              // // Turn head, needed for using Trajectory tracker.
+              line_tracker_status_ = NAV_ST_TURNING;
+              while(true){
+                  if (line_tracker_status_ == NAV_ST_IDLE) break;
+                  ROS_INFO("turning");
+                  if (line_tracker_status_ == NAV_ST_TURNING){
+                      goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
+                  }
+                  spinOnce();
+                  loop_rate.sleep();
+              }
               // mStatus = NAV_ST_EXPLORING;
               //  // Go straight
               // goTo(worldGoalX, worldGoalY, worldGoalZ, yaw, 0.0f, 0.0f, false);
 
               ROS_INFO("goal: %f, %f, %f, %f", map_goal_x, map_goal_y, map_goal_z, yaw);
+              // Check goal occupancy:
+              signed char goal_value = current_map_.getData(goal_point_);
+              ROS_INFO("Current Goal Value is: %u", goal_value);
               double distance = std::pow(map_goal_x - pos_(0), 2) +
                                 std::pow(map_goal_y - pos_(1), 2) +
                                 std::pow(map_goal_z - pos_(2), 2);
@@ -303,6 +310,8 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               goal.pose.position.y = map_goal_y;
               goal.pose.position.z = map_goal_z;
               goal.pose.orientation = goal_quaternion;
+
+              goal_publisher_.publish(goal);
 
               // track_path_status_ = NAV_ST_NAVIGATING;
               bool ret = getJpsTraj(local_time, tf_odom_to_world, goal, false);
@@ -337,7 +346,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
       }
 
       if (node_status_ == NAV_ST_EXPLORING) {
-        if (line_tracker_status_ == NAV_ST_NAVIGATING) {
+        if (line_tracker_status_ == NAV_ST_NAVIGATING || track_path_status_ == NAV_ST_NAVIGATING || traj_tracker_status_ == NAV_ST_NAVIGATING) {
           ROS_INFO("moving.");
           // WallTime endTime = WallTime::now();
         } else {
