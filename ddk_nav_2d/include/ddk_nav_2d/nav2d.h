@@ -27,6 +27,7 @@
 #include <ddk_nav_2d/ExplorationPlanner.h>
 
 #include <kr_tracker_msgs/LineTrackerAction.h>
+#include <kr_tracker_msgs/TrajectoryTrackerAction.h>
 #include <kr_tracker_msgs/Transition.h>
 
 #include <ddk_nav_2d/ddkPlanner.h>
@@ -66,15 +67,18 @@ public:
   bool transition(const std::string &tracker_str);
   
   // Tracker done callback
-  void trackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result);
-  
+  void lineTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result);
+  void trajTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::TrajectoryTrackerResultConstPtr &result);
+
   // 2D exploration
   bool getMapIndex();
   bool preparePlan();
 
   // local replanning
-  bool getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt);
-  bool trackPath(nav_msgs::Path planned_path);
+  bool getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt, bool method);
+  
+  //method == True will use trackPath action. False will use TrajectoryTracker
+  bool trackPath(nav_msgs::Path planned_path, bool method);   
   void trackPathDoneCB(const actionlib::SimpleClientGoalState &state, const kr_replanning_msgs::TrackPathResultConstPtr &result);
 
   // 3D exploration
@@ -84,7 +88,8 @@ private:
   typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
   typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreActionServer;
   typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
-  typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> ClientType;
+  typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> LineClientType;
+  typedef actionlib::SimpleActionClient<kr_tracker_msgs::TrajectoryTrackerAction> TrajectoryClientType;
   typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> trackPathClientType;
 
   // Subscribers
@@ -93,8 +98,9 @@ private:
 
   // Status param
   int node_status_;
-  int line_tracker_Status_;
+  int line_tracker_status_;
   int track_path_status_;
+  int traj_tracker_status_;
 
   //  Pose param
   Vec3 pos_, vel_;
@@ -140,13 +146,15 @@ private:
   std::string explore_action_topic_;
   std::string get_map_action_topic_;
 
-  // action Client: line tracker; 
-  ClientType *line_tracker_min_jerk_client_;
+  // action Client: line tracker; trajectory tracker 
+  LineClientType *line_tracker_min_jerk_client_;
+  TrajectoryClientType *traj_tracker_client_;
+  std::string line_tracker_min_jerk_;
+  std::string traj_tracker_;
 
   // Services client and param: tracker transition; jps planner
   ros::ServiceClient srv_transition_;
   std::string active_tracker_;
-  std::string line_tracker_min_jerk_;
 
   ros::ServiceClient jps_service_client_;
   trackPathClientType *track_path_action_client_;
