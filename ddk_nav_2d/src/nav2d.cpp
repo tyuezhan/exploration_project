@@ -42,16 +42,23 @@ Nav2D::Nav2D() {
   get_first_map_action_server_->start();
 
   node_status_ = NAV_ST_IDLE;
-  line_tracker_Status_ = NAV_ST_IDLE;
-  line_tracker_min_jerk_client_ = new ClientType(nh, "ddk/trackers_manager/line_tracker_min_jerk/LineTracker", true);
+  line_tracker_status_ = NAV_ST_IDLE;
+  line_tracker_min_jerk_ = "kr_trackers/LineTrackerMinJerk";
+  line_tracker_min_jerk_client_ = new LineClientType(nh, "ddk/trackers_manager/line_tracker_min_jerk/LineTracker", true);
   float server_wait_timeout;
   nh.param("Server_wait_timeout", server_wait_timeout, 0.5f);
   if (!line_tracker_min_jerk_client_->waitForServer(ros::Duration(server_wait_timeout))) {
     ROS_ERROR("LineTrackerMinJerk server not found.");
   }
 
+  traj_tracker_status_ = NAV_ST_IDLE;
+  traj_tracker_ = "kr_trackers/TrajectoryTracker";
+  traj_tracker_client_ = new TrajectoryClientType(nh, "ddk/trackers_manager/trajectory_tracker/TrajectoryTracker", true);
+  if (!traj_tracker_client_->waitForServer(ros::Duration(server_wait_timeout))) {
+    ROS_ERROR("TrajectoryTracker server not found.");
+  }
+
   // Services
-  line_tracker_min_jerk_ = "kr_trackers/LineTrackerMinJerk";
   active_tracker_ = "";
   srv_transition_ = nh.serviceClient<kr_tracker_msgs::Transition>("ddk/trackers_manager/transition");
 
@@ -155,7 +162,7 @@ void Nav2D::receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal)
   //   if (distance >= 2)
   //     break;
   //   get_first_map_action_server_->publishFeedback(f);
-  //   if (line_tracker_Status_ == NAV_ST_IDLE) {
+  //   if (line_tracker_status_ == NAV_ST_IDLE) {
   //     goTo(1, 0, 0, 0, 0.0f, 0.0f, true);
   //     distance += 1;
   //   }
@@ -170,7 +177,7 @@ void Nav2D::receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal)
       break;
     // ROS_INFO("In the loop.");
     get_first_map_action_server_->publishFeedback(f);
-    if (line_tracker_Status_ == NAV_ST_IDLE) {
+    if (line_tracker_status_ == NAV_ST_IDLE) {
       ROS_INFO("Move");
       goTo(0, 0, 0, 2.094, 0.0f, 0.0f, true);
       rotation += 2.094;
@@ -232,7 +239,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
         switch (result) {
         case EXPL_TARGET_SET:
           ROS_INFO("EXPL TARGET SET");
-          if (track_path_status_ == NAV_ST_IDLE) {
+          if (track_path_status_ == NAV_ST_IDLE && traj_tracker_status_ == NAV_ST_IDLE) {
             unsigned int goal_x = 0, goal_y = 0;
             if (current_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
               // float map_goal_x = current_map_.getOriginX() + (((double)goal_x + 0.5) * current_map_.getResolution());
@@ -249,7 +256,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               if (yaw < -PI) yaw += 2 * PI;
               if (yaw > PI) yaw -= 2 * PI;
 
-              // line_tracker_Status_ = NAV_ST_TURNING;
+              // line_tracker_status_ = NAV_ST_TURNING;
               // Line Tracker code
               // // Turn head
               // while(true){
@@ -297,8 +304,8 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               goal.pose.position.z = map_goal_z;
               goal.pose.orientation = goal_quaternion;
 
-              track_path_status_ = NAV_ST_NAVIGATING;
-              bool ret = getJpsTraj(local_time, tf_odom_to_world, goal);
+              // track_path_status_ = NAV_ST_NAVIGATING;
+              bool ret = getJpsTraj(local_time, tf_odom_to_world, goal, false);
               if (ret) {
                 ROS_INFO("get jps traj return true");
               }
@@ -330,7 +337,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
       }
 
       if (node_status_ == NAV_ST_EXPLORING) {
-        if (line_tracker_Status_ == NAV_ST_NAVIGATING) {
+        if (line_tracker_status_ == NAV_ST_NAVIGATING) {
           ROS_INFO("moving.");
           // WallTime endTime = WallTime::now();
         } else {
@@ -378,28 +385,42 @@ bool Nav2D::goTo(float x, float y, float z, float yaw, float v_des, float a_des,
   goal.a_des = a_des;
 
   line_tracker_min_jerk_client_->sendGoal(
-      goal, boost::bind(&Nav2D::trackerDoneCB, this, _1, _2),
-      ClientType::SimpleActiveCallback(), ClientType::SimpleFeedbackCallback());
-  line_tracker_Status_ = NAV_ST_NAVIGATING;
+      goal, boost::bind(&Nav2D::lineTrackerDoneCB, this, _1, _2),
+      LineClientType::SimpleActiveCallback(), LineClientType::SimpleFeedbackCallback());
+  line_tracker_status_ = NAV_ST_NAVIGATING;
 
   return transition(line_tracker_min_jerk_);
 }
 
-bool Nav2D::trackPath(nav_msgs::Path planned_path) {
-  kr_replanning_msgs::TrackPathGoal pathGoal;
-  pathGoal.path = planned_path;
-  track_path_action_client_->sendGoal(
-      pathGoal, boost::bind(&Nav2D::trackPathDoneCB, this, _1, _2),
+bool Nav2D::trackPath(nav_msgs::Path planned_path, bool method) {
+  if (method){
+    kr_replanning_msgs::TrackPathGoal path_goal;
+    path_goal.path = planned_path;
+    track_path_action_client_->sendGoal(
+      path_goal, boost::bind(&Nav2D::trackPathDoneCB, this, _1, _2),
       trackPathClientType::SimpleActiveCallback(),
       trackPathClientType::SimpleFeedbackCallback());
-  track_path_status_ = NAV_ST_NAVIGATING;
-  ROS_INFO("Send Track Path goal to server.");
+    track_path_status_ = NAV_ST_NAVIGATING;
+    ROS_INFO("Send Track Path goal to server.");
+    return true;
+  } else {
+    kr_tracker_msgs::TrajectoryTrackerGoal path_goal;
+    for (int i = 0; i < planned_path.poses.size(); i++){
+      path_goal.waypoints.push_back(planned_path.poses[i].pose);
+    }
+    traj_tracker_client_->sendGoal(
+      path_goal, boost::bind(&Nav2D::trajTrackerDoneCB, this, _1, _2),
+      TrajectoryClientType::SimpleActiveCallback(), TrajectoryClientType::SimpleFeedbackCallback());
+    traj_tracker_status_ = NAV_ST_NAVIGATING;
+    ROS_INFO("Send trajectory tracker goal to server.");
+    return transition(traj_tracker_);
+  }
   return true;
 }
 
-void Nav2D::trackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result) {
+void Nav2D::lineTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result) {
   ROS_INFO("Goal reached.");
-  line_tracker_Status_ = NAV_ST_IDLE;
+  line_tracker_status_ = NAV_ST_IDLE;
 }
 
 void Nav2D::trackPathDoneCB(
@@ -419,6 +440,11 @@ bool Nav2D::transition(const std::string &tracker_str) {
     return true;
   }
   return false;
+}
+
+void Nav2D::trajTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::TrajectoryTrackerResultConstPtr &result) {
+  ROS_INFO("trajTracker goal reached.");
+  traj_tracker_status_ = NAV_ST_IDLE;
 }
 
 bool Nav2D::getMapIndex() {
@@ -460,7 +486,7 @@ bool Nav2D::preparePlan() {
   return true;
 }
 
-bool Nav2D::getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt) {
+bool Nav2D::getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt, bool method) {
   nav_msgs::GetPlan jps_srv;
   jps_srv.request.start = min_cost_pt;
   jps_srv.request.start.pose.position.x = o_w_transform.translation()[0];
@@ -474,7 +500,7 @@ bool Nav2D::getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_trans
       ROS_ERROR("JPS did not return a path");
       return false;
     }
-    trackPath(jps_srv.response.plan);
+    trackPath(jps_srv.response.plan, method);
     return true;
   } else {
     ROS_ERROR("Failed to jps call service");
