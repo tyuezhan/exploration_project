@@ -73,6 +73,7 @@ public:
   // 2D exploration
   bool getMapIndex();
   bool preparePlan();
+  void cancelCurrentGoal();
 
   // local replanning
   bool getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt, bool method);
