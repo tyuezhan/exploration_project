@@ -66,7 +66,7 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; rosservice call /StartExplor
 tmux new-window -t $SESSION_NAME -n "Plan"
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning snav_obstacle_demo.launch mav_name:=ddk"
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps3d.launch"
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps2d.launch"
 tmux select-layout -t $SESSION_NAME tiled
 
 # Add window to easily kill all processes

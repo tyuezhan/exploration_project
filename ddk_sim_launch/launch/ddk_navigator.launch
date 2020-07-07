@@ -2,14 +2,10 @@
 
 	<!-- Some general parameters -->
 	<param name="use_sim_time" value="true" />
-	<rosparam file="$(find ddk_sim_launch)/param/my_ddk_nav.yaml"/>
 
-	<!-- Start the Navigator to move the robot autonomously -->
-	<!-- <node name="Navigator" pkg="ddk_nav_2d" type="navigator">
-		<rosparam file="$(find comcast_launch)/param/navigator.yaml"/>
-	</node> -->
-
-	<node name="Navigator" pkg="ddk_nav_2d" type="navigator" output="screen"/>
+	<node name="Navigator" pkg="ddk_nav_2d" type="navigator" output="screen">
+    <remap from="ddk/jps_plan_service" to="ddk/jps2d_plan_service"/>
+  </node>
 
 	<node name="GetMap" pkg="ddk_nav_2d" type="get_map_client" />
 	<node name="Explore" pkg="ddk_nav_2d" type="explore_client" />

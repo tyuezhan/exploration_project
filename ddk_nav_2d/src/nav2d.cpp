@@ -10,16 +10,16 @@ using namespace ros;
 
 Nav2D::Nav2D() {
 
-  NodeHandle nh;
+  pnh_ = NodeHandle("~");
 
   // Subscriber
-  map_subscriber_ = nh.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
-  pose_subscriber_ = nh.subscribe("ddk/ground_truth/odom", 5000, &Nav2D::poseSubscriberCB, this);
+  map_subscriber_ = nh_.subscribe("ddk/projected_map", 5, &Nav2D::mapSubscriberCB, this);
+  pose_subscriber_ = nh_.subscribe("ddk/ground_truth/odom", 10, &Nav2D::poseSubscriberCB, this);
 
   // Load planer
-  nh.param("min_replanning_period", min_replanning_period_, 5.0);
-  nh.param("max_replanning_period", max_replanning_period_, 1.0);
-  nh.param("exploration_strategy", exploration_strategy_, std::string("NearestFrontierPlanner"));
+  pnh_.param("min_replanning_period", min_replanning_period_, 5.0);
+  pnh_.param("max_replanning_period", max_replanning_period_, 1.0);
+  pnh_.param("exploration_strategy", exploration_strategy_, std::string("NearestFrontierPlanner"));
   try {
     plan_loader_ = new PlanLoader("nav2d_navigator", "ExplorationPlanner");
     exploration_planner_ = plan_loader_->createInstance(exploration_strategy_);
@@ -32,55 +32,55 @@ Nav2D::Nav2D() {
   }
 
   // Explore action server
-  nh.param("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
+  pnh_.param("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
   explore_action_server_ = new ExploreActionServer(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false);
   explore_action_server_->start();
 
   // Get first map action server
-  nh.param("getmap_action_topic", get_map_action_topic_, std::string(NAV_GETMAP_ACTION));
+  pnh_.param("getmap_action_topic", get_map_action_topic_, std::string(NAV_GETMAP_ACTION));
   get_first_map_action_server_ = new GetFirstMapActionServer(get_map_action_topic_, boost::bind(&Nav2D::receiveGetMapGoal, this, _1), false);
   get_first_map_action_server_->start();
 
   node_status_ = NAV_ST_IDLE;
   line_tracker_status_ = NAV_ST_IDLE;
   line_tracker_min_jerk_ = "kr_trackers/LineTrackerMinJerk";
-  line_tracker_min_jerk_client_ = new LineClientType(nh, "ddk/trackers_manager/line_tracker_min_jerk/LineTracker", true);
+  line_tracker_min_jerk_client_ = new LineClientType(nh_, "ddk/trackers_manager/line_tracker_min_jerk/LineTracker", true);
   float server_wait_timeout;
-  nh.param("Server_wait_timeout", server_wait_timeout, 0.5f);
+  pnh_.param("Server_wait_timeout", server_wait_timeout, 0.5f);
   if (!line_tracker_min_jerk_client_->waitForServer(ros::Duration(server_wait_timeout))) {
     ROS_ERROR("LineTrackerMinJerk server not found.");
   }
 
   traj_tracker_status_ = NAV_ST_IDLE;
   traj_tracker_ = "kr_trackers/TrajectoryTracker";
-  traj_tracker_client_ = new TrajectoryClientType(nh, "ddk/trackers_manager/trajectory_tracker/TrajectoryTracker", true);
+  traj_tracker_client_ = new TrajectoryClientType(nh_, "ddk/trackers_manager/trajectory_tracker/TrajectoryTracker", true);
   if (!traj_tracker_client_->waitForServer(ros::Duration(server_wait_timeout))) {
     ROS_ERROR("TrajectoryTracker server not found.");
   }
 
   // Services
   active_tracker_ = "";
-  srv_transition_ = nh.serviceClient<kr_tracker_msgs::Transition>("ddk/trackers_manager/transition");
+  srv_transition_ = nh_.serviceClient<kr_tracker_msgs::Transition>("ddk/trackers_manager/transition");
 
   // tf listener
-  nh.param("map_frame", map_frame_, std::string("ddk/odom"));
-  nh.param("robot_frame", robot_frame_, std::string("ddk/base_link"));
+  pnh_.param("map_frame", map_frame_, std::string("ddk/odom"));
+  pnh_.param("robot_frame", robot_frame_, std::string("ddk/base_link"));
   robot_frame_ = tf_Listener_.resolve(robot_frame_);
   map_frame_ = tf_Listener_.resolve(map_frame_);
 
   // Planning related param
-  nh.param("map_inflation_radius", inflation_radius_, 1.0);
-  nh.param("robot_radius", robot_radius_, 0.2);
+  pnh_.param("map_inflation_radius", inflation_radius_, 1.0);
+  pnh_.param("robot_radius", robot_radius_, 0.2);
   cost_obstacle_ = 100;
   // cost_lethal_ = (3.0 - (robot_radius_ / inflation_radius_)) * (double)cost_obstacle_;
   cost_lethal_ = 100;
   map_updated_ = false;
 
   // replanning
-  jps_service_client_ = nh.serviceClient<nav_msgs::GetPlan>("ddk/jps_plan_service");
+  jps_service_client_ = nh_.serviceClient<nav_msgs::GetPlan>("ddk/jps_plan_service");
 
   track_path_status_ = NAV_ST_IDLE;
-  track_path_action_client_ = new trackPathClientType(nh, "ddk/TrackPathAction", true);
+  track_path_action_client_ = new trackPathClientType(nh_, "ddk/TrackPathAction", true);
   if (!track_path_action_client_->waitForServer(ros::Duration(server_wait_timeout))) {
     ROS_ERROR("track path action server not found.");
   }
@@ -96,9 +96,9 @@ Nav2D::~Nav2D() {
   delete track_path_action_client_;
 }
 
-void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid &map) {
+void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
   // ROS_INFO("Map update received.");
-  current_map_.update(map);
+  current_map_.update(*map);
 
   // if(mCellInflationRadius == 0){
   // ROS_INFO("Navigator is now initialized.");
@@ -246,9 +246,9 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               // float map_goal_y = current_map_.getOriginY() + (((double)goal_y + 0.5) * current_map_.getResolution());
               // float map_goal_z = 0.4;
 
-              float map_goal_x = 1.0;
+              float map_goal_x = 3.0;
               float map_goal_y = 0.0;
-              float map_goal_z = 0.4;
+              float map_goal_z = 0.6;
               float yaw;
 
               yaw = atan2(pos_(1) - map_goal_y, pos_(0) - map_goal_x);

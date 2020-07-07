@@ -53,7 +53,7 @@ public:
   float yaw() { return yaw_; }
 
   // Subscriber call back function
-  void mapSubscriberCB(const nav_msgs::OccupancyGrid &map);
+  void mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map);
   void poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom);
 
   // Action Server goal callback
@@ -91,6 +91,8 @@ private:
   typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> LineClientType;
   typedef actionlib::SimpleActionClient<kr_tracker_msgs::TrajectoryTrackerAction> TrajectoryClientType;
   typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> trackPathClientType;
+
+  ros::NodeHandle nh_, pnh_;
 
   // Subscribers
   ros::Subscriber map_subscriber_;

@@ -1,5 +1,8 @@
 <launch>
-	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
+
+  <arg name="mav_name" default="ddk"/>
+
+	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server" ns="$(arg mav_name)">
 		<param name="resolution" value="0.05" />
 
 		<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
@@ -11,7 +14,7 @@
 		<param name="sensor_model/max_range" value="5.0" />
 
 		<!-- data source to integrate (PointCloud2) -->
-		<remap from="cloud_in" to="/ddk/rgbd/depth/points" />
+		<remap from="cloud_in" to="rgbd/depth/points" />
         <!-- <param name="base_frame_id" type="string" value="/ddk/ground_truth/odom"/> -->
 
         <param name="latch" type="bool" value="false"/>

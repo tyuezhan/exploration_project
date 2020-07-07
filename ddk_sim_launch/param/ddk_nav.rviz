@@ -3,7 +3,8 @@ Panels:
     Help Height: 78
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Projected2DMap1/Status1
       Splitter Ratio: 0.5408163070678711
     Tree Height: 349
   - Class: rviz/Selection
@@ -254,7 +255,7 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: Projected2DMap
-      Topic: /projected_map
+      Topic: /ddk/projected_map
       Unreliable: false
       Use Timestamp: false
       Value: true
