@@ -1,5 +1,4 @@
 #include <ddk_nav_2d/nav2d.h>
-#include <ros/console.h>
 #include <string>
 
 #include <math.h>

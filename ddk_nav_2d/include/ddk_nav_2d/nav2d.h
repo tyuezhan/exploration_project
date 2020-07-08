@@ -11,6 +11,7 @@
 #include <nav_msgs/Path.h>
 
 #include <ddk_nav_2d/GridMap.h>
+#include <ddk_nav_2d/commands.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -26,7 +27,6 @@
 #include <kr_tracker_msgs/TrajectoryTrackerAction.h>
 #include <kr_tracker_msgs/Transition.h>
 
-#include <ddk_nav_2d/ddkPlanner.h>
 #include <octomap/octomap.h>
 #include <octomap_msgs/Octomap.h>
 
@@ -34,25 +34,6 @@
 #include <visualization_msgs/MarkerArray.h>
 
 #include <kr_replanning_msgs/TrackPathAction.h>
-
-#define NAV_STOP_SERVICE "Stop"
-#define NAV_PAUSE_SERVICE "Pause"
-#define NAV_EXPLORE_SERVICE "StartExploration"
-#define NAV_GETMAP_SERVICE  "StartMapping"
-#define NAV_LOCALIZE_SERVICE  "StartLocalization"
-#define NAV_GOAL_TOPIC      "goal"
-#define NAV_STATUS_TOPIC    "nav_status"
-#define NAV_MOVE_ACTION     "MoveTo"
-#define NAV_EXPLORE_ACTION  "Explore"
-#define NAV_GETMAP_ACTION   "GetFirstMap"
-#define NAV_LOCALIZE_ACTION "Localize"
-
-#define NAV_ST_IDLE	      0
-#define NAV_ST_NAVIGATING 1
-#define NAV_ST_EXPLORING  4
-#define NAV_ST_WAITING    5
-#define NAV_ST_RECOVERING 6
-#define NAV_ST_TURNING    7
 
 class Nav2D {
 
@@ -95,9 +76,6 @@ public:
   //method == True will use trackPath action. False will use TrajectoryTracker
   bool trackPath(nav_msgs::Path planned_path, bool method);   
   void trackPathDoneCB(const actionlib::SimpleClientGoalState &state, const kr_replanning_msgs::TrackPathResultConstPtr &result);
-
-  // 3D exploration
-  ddkPlanner mPlanner;
 
 private:
   typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreServerType;
