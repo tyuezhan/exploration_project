@@ -350,7 +350,7 @@ Visualization Manager:
       Shaft Length: 0.6000000238418579
       Shaft Radius: 0.05000000074505806
       Shape: Arrow
-      Topic: /navigator/goal_point
+      Topic: /ddk/navigator/goal_point
       Unreliable: false
       Value: true
   Enabled: true

@@ -10,10 +10,7 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 
-#include <ddk_nav_2d/GetFirstMapAction.h>
 #include <ddk_nav_2d/GridMap.h>
-#include <ddk_nav_2d/MapInflationTool.h>
-#include <ddk_nav_2d/commands.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -21,7 +18,6 @@
 
 // include action
 #include <ddk_nav_2d/ExploreAction.h>
-#include <ddk_nav_2d/GetFirstMapAction.h>
 
 // TODO: Delete unnecessary part in Exploration planner
 #include <ddk_nav_2d/ExplorationPlanner.h>
@@ -38,6 +34,25 @@
 #include <visualization_msgs/MarkerArray.h>
 
 #include <kr_replanning_msgs/TrackPathAction.h>
+
+#define NAV_STOP_SERVICE "Stop"
+#define NAV_PAUSE_SERVICE "Pause"
+#define NAV_EXPLORE_SERVICE "StartExploration"
+#define NAV_GETMAP_SERVICE  "StartMapping"
+#define NAV_LOCALIZE_SERVICE  "StartLocalization"
+#define NAV_GOAL_TOPIC      "goal"
+#define NAV_STATUS_TOPIC    "nav_status"
+#define NAV_MOVE_ACTION     "MoveTo"
+#define NAV_EXPLORE_ACTION  "Explore"
+#define NAV_GETMAP_ACTION   "GetFirstMap"
+#define NAV_LOCALIZE_ACTION "Localize"
+
+#define NAV_ST_IDLE	      0
+#define NAV_ST_NAVIGATING 1
+#define NAV_ST_EXPLORING  4
+#define NAV_ST_WAITING    5
+#define NAV_ST_RECOVERING 6
+#define NAV_ST_TURNING    7
 
 class Nav2D {
 
@@ -58,7 +73,6 @@ public:
 
   // Action Server goal callback
   void receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal);
-  void receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal);
 
   // Line tracker goto
   bool goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative);
@@ -86,12 +100,11 @@ public:
   ddkPlanner mPlanner;
 
 private:
-  typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
-  typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreActionServer;
+  typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreServerType;
   typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
   typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> LineClientType;
   typedef actionlib::SimpleActionClient<kr_tracker_msgs::TrajectoryTrackerAction> TrajectoryClientType;
-  typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> trackPathClientType;
+  typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> TrackPathClientType;
 
   ros::NodeHandle nh_, pnh_;
 
@@ -115,7 +128,6 @@ private:
   ros::Time last_odom_t_;
 
   // Map related things
-  // MapInflationTool inflation_tool_;
 
   // 2D map related param
   bool map_updated_;
@@ -123,38 +135,34 @@ private:
   GridMap current_map_;
 
   // TF param
-  tf::TransformListener tf_Listener_;
+  tf::TransformListener tf_listener_;
   std::string map_frame_;
   std::string robot_frame_;
 
   // 2D frontier exploration related param
   std::string exploration_strategy_;
   boost::shared_ptr<ExplorationPlanner> exploration_planner_;
-  PlanLoader *plan_loader_;
+  std::unique_ptr<PlanLoader> plan_loader_ptr_;
 
   double min_replanning_period_;
   double max_replanning_period_;
   unsigned int goal_point_;
   unsigned int start_point_;
   double frequency_;
-  double inflation_radius_;
   double robot_radius_;
-  unsigned int cell_inflation_radius_;
   unsigned int cell_robot_radius_;
-  signed char cost_obstacle_;
   signed char cost_lethal_;
 
 
-  // action Server and param:  get first map server; exploration server
-  GetFirstMapActionServer *get_first_map_action_server_;
-  ExploreActionServer *explore_action_server_;
+  // action Server and param:  exploration server
+  std::unique_ptr<ExploreServerType> explore_action_server_ptr_;
 
   std::string explore_action_topic_;
   std::string get_map_action_topic_;
 
   // action Client: line tracker; trajectory tracker 
-  LineClientType *line_tracker_min_jerk_client_;
-  TrajectoryClientType *traj_tracker_client_;
+  std::unique_ptr<LineClientType> line_tracker_min_jerk_client_ptr_;
+  std::unique_ptr<TrajectoryClientType> traj_tracker_client_ptr_;
   std::string line_tracker_min_jerk_;
   std::string traj_tracker_;
 
@@ -163,5 +171,5 @@ private:
   std::string active_tracker_;
 
   ros::ServiceClient jps_service_client_;
-  trackPathClientType *track_path_action_client_;
+  std::unique_ptr<TrackPathClientType> track_path_action_client_ptr_;
 };

@@ -34,9 +34,6 @@ find_package(octomap REQUIRED)
 add_action_files(
   FILES
   Explore.action
-  GetFirstMap.action
-  Localize.action
-  MoveToPosition2D.action
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -75,33 +72,22 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR} ${CHOLMOD_INCLUDE_DIR})
 
 ## Declare a cpp library
-add_library(MapInflationTool src/MapInflationTool.cpp)
 add_library(nav2d src/nav2d.cpp)
 add_library(ddkPlanner src/ddkPlanner.cpp)
 
 ## Declare a cpp executable
 add_executable(navigator src/navigator.cpp)
-add_executable(set_goal_client src/set_goal_client.cpp)
 add_executable(explore_client src/explore_client.cpp)
-add_executable(get_map_client src/get_map_client.cpp)
-add_executable(localize_client src/localize_client.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(navigator ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-add_dependencies(set_goal_client ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(explore_client ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-add_dependencies(get_map_client ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-add_dependencies(localize_client ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(nav2d ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(set_goal_client ${catkin_LIBRARIES})
 target_link_libraries(explore_client ${catkin_LIBRARIES})
-target_link_libraries(get_map_client ${catkin_LIBRARIES})
-target_link_libraries(localize_client ${catkin_LIBRARIES})
 target_link_libraries(navigator nav2d ${catkin_LIBRARIES})
-target_link_libraries(nav2d MapInflationTool ${catkin_LIBRARIES})
 target_link_libraries(nav2d ddkPlanner ${catkin_LIBRARIES})
 target_link_libraries(ddkPlanner octomap ${catkin_LIBRARIES})
 target_link_libraries(nav2d ${CHOLMOD_LIBRARY} nlopt)
@@ -115,12 +101,8 @@ target_link_libraries(nav2d ${CHOLMOD_LIBRARY} nlopt)
 ## Mark executables and/or libraries for installation
 install(
   TARGETS
-    MapInflationTool
     navigator
-    set_goal_client
     explore_client
-    get_map_client
-    localize_client
     nav2d
     ddkPlanner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
