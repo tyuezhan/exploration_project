@@ -37,7 +37,7 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; rosrun kr_trackers 
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; rosparam set robot_name ${MAV_NAME}; rosrun rqt_mav_manager rqt_mav_manager" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch kr_mav_launch mesh_vis.launch mav_type:=hummingbird mav_name:=${MAV_NAME} odom_topic:=${MAV_NAME}/${ODOM_TOPIC}" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch kr_mav_launch mesh_vis.launch mav_type:=hummingbird mav_name:=${MAV_NAME} odom_topic:=${ODOM_TOPIC} __ns:=${MAV_NAME}" Enter
 tmux select-layout -t $SESSION_NAME tiled
 
 tmux new-window -t $SESSION_NAME -n "Main"
