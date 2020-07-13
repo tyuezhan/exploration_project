@@ -19,12 +19,16 @@ Nav2D::Nav2D() {
   pnh_.param<int>("occupied_cell_threshold", occupied_cell_threshold_, 1);
   pnh_.param<std::string>("exploration_strategy", exploration_strategy_, std::string("NearestFrontierPlanner"));
   pnh_.param<std::string>("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
-
+  pnh_.param<double>("map_inflation_radius", map_inflation_radius_, 0.5);
+  
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
   pose_subscriber_ = nh_.subscribe("ground_truth/odom", 10, &Nav2D::poseSubscriberCB, this);
   // Publisher
   goal_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("navigator/goal_point", 5);
+
+  //for debug usage
+  inflated_map_publisher_ = nh_.advertise<nav_msgs::OccupancyGrid>("navigator/inflated_map", 5);
 
   // Load planner
   try {
@@ -83,9 +87,13 @@ Nav2D::~Nav2D() {
 
 
 void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
+  boost::mutex::scoped_lock lock(map_mutex_);
   current_map_.update(*map);
   if (map_updated_ == false) {
     ROS_INFO("Navigator is now initialized.");
+    cell_map_inflation_radius_ = map_inflation_radius_ / current_map_.getResolution();
+    ROS_INFO("Inflation cell radius: %u", cell_map_inflation_radius_);
+		map_inflation_tool_.computeCaches(cell_map_inflation_radius_);
     current_map_.setLethalCost((signed char)occupied_cell_threshold_);
   }
   map_updated_ = true;
@@ -126,7 +134,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
 
   //TODO: add this to pnh_ param later if needed.
   // set to change use traj tracker / TrackPath.
-  bool track_path = false;
+  bool track_path = true;
   // set to change if recheck
   bool recheck_goal = false;
 
@@ -191,6 +199,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
 
     // Not moving(reached goal) or recheck, need to find new frontiers.
     if (!moving || recheck){
+      boost::mutex::scoped_lock lock(map_mutex_);
       if (preparePlan()) {
         int result = exploration_planner_->findExplorationTarget(&current_map_, start_point_, goal_point_);
         switch (result) {
@@ -306,6 +315,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
           ROS_INFO("Exploration is waiting.");
           break;
         case EXPL_FAILED:
+          ROS_INFO("Exploration failed.");
           break;
         default:
           ROS_ERROR("Exploration planner returned invalid status code: %d!", result);
@@ -330,12 +340,13 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
           fb.robot_pose.theta = yaw_;
           explore_action_server_ptr_->publishFeedback(fb);
         }
-      } else {
-        explore_action_server_ptr_->setAborted();
-        ROS_WARN("Exploration has failed!");
-        node_status_ = NAV_ST_IDLE;
-        return;
       }
+      // else {
+      //   explore_action_server_ptr_->setAborted();
+      //   ROS_WARN("Exploration has failed!");
+      //   node_status_ = NAV_ST_IDLE;
+      //   return;
+      // }
     }
 
     // Sleep remaining time
@@ -476,6 +487,11 @@ bool Nav2D::preparePlan() {
       for (int j = -cell_robot_radius_; j < cell_robot_radius_; j++)
         current_map_.setData(x + i, y + j, 0);
   ROS_INFO("prepare plan ready, set Startpoint as %d", start_point_);
+
+  // Compute map inflation
+  map_inflation_tool_.inflateMap(&current_map_);
+  inflated_map_publisher_.publish(current_map_.getMap());
+
   return true;
 }
 

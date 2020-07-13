@@ -72,6 +72,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR} ${CHOLMOD_INCLUDE_DIR})
 
 ## Declare a cpp library
+add_library(MapInflationTool src/MapInflationTool.cpp)
 add_library(nav2d src/nav2d.cpp)
 
 ## Declare a cpp executable
@@ -87,6 +88,7 @@ add_dependencies(nav2d ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGET
 ## Specify libraries to link a library or executable target against
 target_link_libraries(explore_client ${catkin_LIBRARIES})
 target_link_libraries(navigator nav2d ${catkin_LIBRARIES})
+target_link_libraries(nav2d MapInflationTool ${catkin_LIBRARIES})
 target_link_libraries(nav2d ${CHOLMOD_LIBRARY} nlopt)
 #############
 ## Install ##
@@ -101,6 +103,7 @@ install(
     navigator
     explore_client
     nav2d
+    MapInflationTool
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

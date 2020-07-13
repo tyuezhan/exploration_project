@@ -10,7 +10,7 @@
     <node name="Navigator" pkg="ddk_nav_2d" type="navigator" output="screen">
       <remap from="jps_plan_service" to="jps2d_plan_service"/>
 
-      <param name="min_recheck_period" type="double" value="8.0"/>
+      <param name="min_recheck_period" type="double" value="15.0"/>
       <param name="server_wait_timeout" type="double" value="3.0"/>
       <param name="map_frame" type="string" value="ddk/odom"/>
       <param name="robot_frame_" type="string" value="ddk/base_link"/>
@@ -21,6 +21,7 @@
       <param name="frequency" type="double" value="2"/>
       <!-- thredhold value of occupied cell in occupancy grid -->
       <param name="occupied_cell_threshold" type="int" value="1"/>
+      <param name="map_inflation_radius" type="double" value="0.5"/>
 
     </node>
     <node name="Explore" pkg="ddk_nav_2d" type="explore_client" />

@@ -83,6 +83,14 @@ public:
 		int y = index / mMapWidth;
 		int x = index % mMapWidth;
 		
+		// hacky way
+		for (int i = -8; i < 8; i++){
+			for (int j = -8; j < 8; j++) {
+				if (getData(x+i, y+j) > 0) return false;
+			}
+		}
+
+
 		if(getData(x-1, y-1) == -1) return true;
 		if(getData(x-1, y  ) == -1) return true;
 		if(getData(x-1, y+1) == -1) return true;

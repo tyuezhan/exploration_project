@@ -29,6 +29,7 @@
 
 #include <ddk_nav_2d/GridMap.h>
 #include <ddk_nav_2d/commands.h>
+#include <ddk_nav_2d/MapInflationTool.h>
 #include <ddk_nav_2d/ExploreAction.h>
 #include <ddk_nav_2d/ExplorationPlanner.h>
 
@@ -89,6 +90,8 @@ private:
   // Publisher
   ros::Publisher goal_publisher_;
 
+  ros::Publisher inflated_map_publisher_;
+
   // Status param
   int node_status_;
   int line_tracker_status_;
@@ -102,6 +105,7 @@ private:
   float yaw_;
   Quat odom_q_;
   ros::Time last_odom_t_;
+  MapInflationTool map_inflation_tool_;
 
   // TF param
   tf::TransformListener tf_listener_;
@@ -119,6 +123,8 @@ private:
   double frequency_;
   int cell_robot_radius_;
   int occupied_cell_threshold_;
+  double map_inflation_radius_;
+  unsigned int cell_map_inflation_radius_;
 
   // strings
   std::string explore_action_topic_;
@@ -138,4 +144,6 @@ private:
   // Services client
   ros::ServiceClient srv_transition_;
   ros::ServiceClient jps_service_client_;
+
+  boost::mutex map_mutex_;
 };
