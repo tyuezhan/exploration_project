@@ -106,6 +106,7 @@ private:
   Quat odom_q_;
   ros::Time last_odom_t_;
   MapInflationTool map_inflation_tool_;
+  float flight_height_;
 
   // TF param
   tf::TransformListener tf_listener_;

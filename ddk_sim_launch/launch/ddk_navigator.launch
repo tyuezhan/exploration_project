@@ -23,6 +23,8 @@
       <param name="occupied_cell_threshold" type="int" value="1"/>
       <param name="map_inflation_radius" type="double" value="0.5"/>
 
+      <param name="flight_height" type="double" value="1.2"/>
+
     </node>
     <node name="Explore" pkg="ddk_nav_2d" type="explore_client" />
   

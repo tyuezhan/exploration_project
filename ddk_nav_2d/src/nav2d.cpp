@@ -20,6 +20,7 @@ Nav2D::Nav2D() {
   pnh_.param<std::string>("exploration_strategy", exploration_strategy_, std::string("NearestFrontierPlanner"));
   pnh_.param<std::string>("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
   pnh_.param<double>("map_inflation_radius", map_inflation_radius_, 0.5);
+  pnh_.param<float>("flight_height", flight_height_, 1.2);
   
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
@@ -211,7 +212,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
             if (current_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
               float map_goal_x = current_map_.getOriginX() + (((double)goal_x + 0.5) * current_map_.getResolution());
               float map_goal_y = current_map_.getOriginY() + (((double)goal_y + 0.5) * current_map_.getResolution());
-              float map_goal_z = 0.4;
+              float map_goal_z = flight_height_;
 
               if (recheck && moving){
               last_check = cycle;
