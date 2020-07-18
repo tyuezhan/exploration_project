@@ -21,7 +21,7 @@
 
 		<param name="occupancy_min_z" value="0.05"/>
 
-		<param name="occupancy_max_z" value="0.5"/>
+		<param name="occupancy_max_z" value="2.4"/>
 
 	</node>
 

@@ -21,10 +21,13 @@ find_package(catkin REQUIRED COMPONENTS
   eigen_conversions
   visualization_msgs
   kr_replanning_msgs
+  grid_map_ros
+  plan_env
 )
 
 find_package(Eigen3 REQUIRED)
 find_package(octomap REQUIRED)
+find_package(PCL 1.7 REQUIRED)
 
 
 ################################################
@@ -72,26 +75,35 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR} ${CHOLMOD_INCLUDE_DIR})
+include_directories(${PCL_INCLUDE_DIRS})
+
+link_directories(${PCL_LIBRARY_DIRS})
 
 ## Declare a cpp library
 add_library(MapInflationTool src/MapInflationTool.cpp)
 add_library(nav2d src/nav2d.cpp)
+add_library(frontier_planner src/frontier_planner.cpp)
 
 ## Declare a cpp executable
 add_executable(navigator src/navigator.cpp)
 add_executable(explore_client src/explore_client.cpp)
+add_executable(mapping src/mapping.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(navigator ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(explore_client ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(nav2d ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(mapping ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(frontier_planner ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(explore_client ${catkin_LIBRARIES})
 target_link_libraries(navigator nav2d ${catkin_LIBRARIES})
 target_link_libraries(nav2d MapInflationTool ${catkin_LIBRARIES})
 target_link_libraries(nav2d ${CHOLMOD_LIBRARY} nlopt)
+target_link_libraries(nav2d frontier_planner)
+target_link_libraries(mapping ${PCL_LIBRARIES} ${catkin_LIBRARIES})
 #############
 ## Install ##
 #############
@@ -106,6 +118,8 @@ install(
     explore_client
     nav2d
     MapInflationTool
+    mapping
+    frontier_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

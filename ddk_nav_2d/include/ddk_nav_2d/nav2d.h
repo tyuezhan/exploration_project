@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 #include <std_srvs/Trigger.h>
-#include <pluginlib/class_loader.h>
+// #include <pluginlib/class_loader.h>
 
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
@@ -33,6 +33,9 @@
 #include <ddk_nav_2d/ExploreAction.h>
 #include <ddk_nav_2d/ExplorationPlanner.h>
 
+#include <grid_map_ros/grid_map_ros.hpp>
+
+#include <ddk_nav_2d/frontier_planner.h>
 
 class Nav2D {
 
@@ -70,13 +73,14 @@ public:
   bool getMapIndex();
   bool preparePlan();
   void cancelCurrentGoal();
+  double getGoalHeading(unsigned int goal_index);
 
   // replanning
   bool getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt, bool method);
 
 
 private:
-  typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
+  // typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
   typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreServerType;
   typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> LineClientType;
   typedef actionlib::SimpleActionClient<kr_tracker_msgs::TrajectoryTrackerAction> TrajectoryClientType;
@@ -99,6 +103,11 @@ private:
   int traj_tracker_status_;
 
   //  Map & Pose
+  // grid_map::GridMap map_test_;
+  FrontierPlanner frontier_planner_;
+  bool goal_recheck_;
+  double obstacle_scan_range_;
+
   bool map_updated_;
   GridMap current_map_;
   Vec3 pos_;
@@ -106,6 +115,7 @@ private:
   Quat odom_q_;
   ros::Time last_odom_t_;
   MapInflationTool map_inflation_tool_;
+  bool map_inflated_;
   float flight_height_;
 
   // TF param
@@ -114,9 +124,9 @@ private:
   std::string robot_frame_;
 
   // 2D frontier exploration related param
-  std::string exploration_strategy_;
-  std::unique_ptr<PlanLoader> plan_loader_ptr_;
-  boost::shared_ptr<ExplorationPlanner> exploration_planner_;
+  // std::string exploration_strategy_;
+  // std::unique_ptr<PlanLoader> plan_loader_ptr_;
+  // boost::shared_ptr<ExplorationPlanner> exploration_planner_;
 
   double min_recheck_period_;
   unsigned int start_point_;

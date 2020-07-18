@@ -17,10 +17,11 @@ Nav2D::Nav2D() {
   pnh_.param<int>("cell_robot_radius", cell_robot_radius_, 1);
   pnh_.param<double>("frequency", frequency_, 2.0);
   pnh_.param<int>("occupied_cell_threshold", occupied_cell_threshold_, 1);
-  pnh_.param<std::string>("exploration_strategy", exploration_strategy_, std::string("NearestFrontierPlanner"));
   pnh_.param<std::string>("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
   pnh_.param<double>("map_inflation_radius", map_inflation_radius_, 0.5);
   pnh_.param<float>("flight_height", flight_height_, 1.2);
+  pnh_.param<bool>("goal_recheck", goal_recheck_, true);
+  pnh_.param<double>("obstacle_scan_range", obstacle_scan_range_, 1.0);
   
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
@@ -30,17 +31,6 @@ Nav2D::Nav2D() {
 
   //for debug usage
   inflated_map_publisher_ = nh_.advertise<nav_msgs::OccupancyGrid>("navigator/inflated_map", 5);
-
-  // Load planner
-  try {
-    plan_loader_ptr_.reset(new PlanLoader("nav2d_navigator", "ExplorationPlanner"));
-    exploration_planner_ = plan_loader_ptr_->createInstance(exploration_strategy_);
-    ROS_INFO("Successfully loaded exploration strategy [%s].", exploration_strategy_.c_str());
-  } catch (pluginlib::PluginlibException &ex) {
-    ROS_ERROR("Failed to load exploration plugin! Error: %s", ex.what());
-    explore_action_server_ptr_ = NULL;
-    plan_loader_ptr_ = NULL;
-  }
 
   // Services
   srv_transition_ = nh_.serviceClient<kr_tracker_msgs::Transition>("trackers_manager/transition");
@@ -78,12 +68,13 @@ Nav2D::Nav2D() {
   // Strings for tracker transition
   line_tracker_min_jerk_ = "kr_trackers/LineTrackerMinJerk";
   traj_tracker_ = "kr_trackers/TrajectoryTracker";
+  
+  frontier_planner_.setObstacleScanRange(obstacle_scan_range_);
 }
 
 
 Nav2D::~Nav2D() {
-  ROS_INFO("Clean.");
-  exploration_planner_.reset();
+  // exploration_planner_.reset();
 }
 
 
@@ -98,6 +89,14 @@ void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
     current_map_.setLethalCost((signed char)occupied_cell_threshold_);
   }
   map_updated_ = true;
+  map_inflated_ = false;
+  
+  // Try grid map
+  // bool status = grid_map::GridMapRosConverter::fromOccupancyGrid(*map, "test", map_test_);
+  // grid_map::Position start(0.0, 0.0);
+  // grid_map::Position goal(0.0, 0.0);
+  // frontier_planner_.findExplorationTarget(&map_test_, start, goal);
+  // if (status) ROS_INFO("Yeah");
 }
 
 
@@ -131,13 +130,12 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
   unsigned int last_check = 0;
   bool recheck;
   unsigned int recheck_cycles = min_recheck_period_ * frequency_;
+  // unsigned int recheck_cycles;
   float last_goal_x, last_goal_y;
 
   //TODO: add this to pnh_ param later if needed.
   // set to change use traj tracker / TrackPath.
   bool track_path = true;
-  // set to change if recheck
-  bool recheck_goal = false;
 
   bool moving = false;
   ros::Rate loop_rate(frequency_);
@@ -192,17 +190,17 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     }
 
     // recheck for exploration target
-    if (recheck_goal) {
+    if (goal_recheck_) {
       recheck = last_check == 0 ||(recheck_cycles && (cycle - last_check > recheck_cycles));
     } else {
-      recheck = recheck_goal;
+      recheck = goal_recheck_;
     }
 
     // Not moving(reached goal) or recheck, need to find new frontiers.
     if (!moving || recheck){
       boost::mutex::scoped_lock lock(map_mutex_);
       if (preparePlan()) {
-        int result = exploration_planner_->findExplorationTarget(&current_map_, start_point_, goal_point_);
+        int result = frontier_planner_.findExplorationTarget(&current_map_, start_point_, goal_point_);
         switch (result) {
 
         case EXPL_TARGET_SET:
@@ -259,10 +257,12 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               // Check goal occupancy:
               signed char goal_value = current_map_.getData(goal_point_);
               ROS_INFO("Current Goal Value is: %u", goal_value);
-              double distance = std::pow(map_goal_x - pos_(0), 2) +
+              double distance = std::sqrt(std::pow(map_goal_x - pos_(0), 2) +
                                 std::pow(map_goal_y - pos_(1), 2) +
-                                std::pow(map_goal_z - pos_(2), 2);
+                                std::pow(map_goal_z - pos_(2), 2));
               ROS_INFO("Distance to goal: %f", distance);
+              // TODO: check the hardcode according to spin speed and speed
+              recheck_cycles = (distance * 5 + 5) * frequency_;
 
               // Gen arguments needed for getJpsTraj function.
               double local_time = 0.0;
@@ -279,7 +279,11 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               tf::transformTFToEigen(transform, dT_o_w);
               Eigen::Affine3f tf_odom_to_world = dT_o_w.cast<float>();
 
-              geometry_msgs::Quaternion goal_quaternion = tf::createQuaternionMsgFromYaw(yaw);
+              // Check what is the expected goal yaw.
+              double goal_yaw = getGoalHeading(goal_point_);
+              if (goal_yaw < 0) ROS_ERROR("Goal heading -1.");
+
+              geometry_msgs::Quaternion goal_quaternion = tf::createQuaternionMsgFromYaw(goal_yaw);
               geometry_msgs::PoseStamped goal;
               goal.header.frame_id = map_frame_;
               goal.header.stamp = ros::Time::now();
@@ -292,11 +296,11 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               goal_publisher_.publish(goal);
 
               bool ret = getJpsTraj(local_time, tf_odom_to_world, goal, track_path);
-              if (ret) {
-                ROS_INFO("get jps traj return true");
-              }
-              if (!ret)
-                ROS_INFO("get jps return false");
+              // if (ret) {
+              //   ROS_INFO("get jps traj return true");
+              // }
+              // if (!ret)
+              //   ROS_INFO("get jps return false");
             }
           }
           break;
@@ -473,7 +477,7 @@ bool Nav2D::getMapIndex() {
   current_map_.getIndex(current_x, current_y, start_point);
   start_point_ = start_point;
 
-  ROS_INFO("Get current map index: worldX:%f, worldY:%f, mapInd_x:%d, mapInd_y:%d, startpoint:%d", world_x, world_y, current_x, current_y, start_point);
+  // ROS_INFO("Get current map index: worldX:%f, worldY:%f, mapInd_x:%d, mapInd_y:%d, startpoint:%d", world_x, world_y, current_x, current_y, start_point);
   return true;
 }
 
@@ -490,9 +494,11 @@ bool Nav2D::preparePlan() {
   ROS_INFO("prepare plan ready, set Startpoint as %d", start_point_);
 
   // Compute map inflation
-  map_inflation_tool_.inflateMap(&current_map_);
-  inflated_map_publisher_.publish(current_map_.getMap());
-
+  if (!map_inflated_){
+    map_inflation_tool_.inflateMap(&current_map_);
+    map_inflated_ = true;
+    inflated_map_publisher_.publish(current_map_.getMap());
+  }
   return true;
 }
 
@@ -517,4 +523,20 @@ bool Nav2D::getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_trans
     ROS_ERROR("Failed to jps call service");
     return false;
   }
+}
+
+double Nav2D::getGoalHeading(unsigned int goal_index) {
+  unsigned int map_width = current_map_.getWidth();
+  int y = goal_index / map_width;
+  int x = goal_index % map_width;
+  if(current_map_.getData(x-1, y-1) == -1) return 225*PI/180;
+  if(current_map_.getData(x-1, y  ) == -1) return 180*PI/180;
+  if(current_map_.getData(x-1, y+1) == -1) return 135*PI/180;
+  if(current_map_.getData(x  , y-1) == -1) return 270*PI/180;
+  if(current_map_.getData(x  , y+1) == -1) return 90*PI/180;
+  if(current_map_.getData(x+1, y-1) == -1) return 315*PI/180;
+  if(current_map_.getData(x+1, y  ) == -1) return 0.0;
+  if(current_map_.getData(x+1, y+1) == -1) return 45*PI/180;
+  
+  return -1.0;
 }
