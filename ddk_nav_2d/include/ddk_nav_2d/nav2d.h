@@ -104,18 +104,14 @@ private:
 
   //  Map & Pose
   // grid_map::GridMap map_test_;
-  FrontierPlanner frontier_planner_;
-  bool goal_recheck_;
-  double obstacle_scan_range_;
-
   bool map_updated_;
-  GridMap current_map_;
+  GridMap current_map_, inflated_map_;
   Vec3 pos_;
   float yaw_;
   Quat odom_q_;
   ros::Time last_odom_t_;
   MapInflationTool map_inflation_tool_;
-  bool map_inflated_;
+  bool inflated_map_inflated_;
   float flight_height_;
 
   // TF param
@@ -124,9 +120,10 @@ private:
   std::string robot_frame_;
 
   // 2D frontier exploration related param
-  // std::string exploration_strategy_;
-  // std::unique_ptr<PlanLoader> plan_loader_ptr_;
-  // boost::shared_ptr<ExplorationPlanner> exploration_planner_;
+  FrontierPlanner frontier_planner_;
+  bool goal_recheck_;
+  double obstacle_scan_range_;
+  int goal_frontier_threshold_;
 
   double min_recheck_period_;
   unsigned int start_point_;

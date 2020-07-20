@@ -4,7 +4,7 @@
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "Navigator");
+	ros::init(argc, argv, "navigator");
 	ros::NodeHandle n;
 	
 	// RobotNavigator robNav;

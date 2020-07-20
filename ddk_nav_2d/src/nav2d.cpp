@@ -22,6 +22,7 @@ Nav2D::Nav2D() {
   pnh_.param<float>("flight_height", flight_height_, 1.2);
   pnh_.param<bool>("goal_recheck", goal_recheck_, true);
   pnh_.param<double>("obstacle_scan_range", obstacle_scan_range_, 1.0);
+  pnh_.param<int>("goal_frontier_num_threshold", goal_frontier_threshold_, 30);
   
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
@@ -70,6 +71,7 @@ Nav2D::Nav2D() {
   traj_tracker_ = "kr_trackers/TrajectoryTracker";
   
   frontier_planner_.setObstacleScanRange(obstacle_scan_range_);
+  frontier_planner_.setGoalFrontierThreshold(goal_frontier_threshold_);
 }
 
 
@@ -81,6 +83,7 @@ Nav2D::~Nav2D() {
 void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
   boost::mutex::scoped_lock lock(map_mutex_);
   current_map_.update(*map);
+  inflated_map_.update(*map);
   if (map_updated_ == false) {
     ROS_INFO("Navigator is now initialized.");
     cell_map_inflation_radius_ = map_inflation_radius_ / current_map_.getResolution();
@@ -89,14 +92,20 @@ void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
     current_map_.setLethalCost((signed char)occupied_cell_threshold_);
   }
   map_updated_ = true;
-  map_inflated_ = false;
-  
+  inflated_map_inflated_ = false;
+
+  // Compute map inflation 
+  if (!inflated_map_inflated_){
+    map_inflation_tool_.inflateMap(&inflated_map_);
+    inflated_map_inflated_ = true;
+    inflated_map_publisher_.publish(inflated_map_.getMap());
+  }
   // Try grid map
   // bool status = grid_map::GridMapRosConverter::fromOccupancyGrid(*map, "test", map_test_);
   // grid_map::Position start(0.0, 0.0);
   // grid_map::Position goal(0.0, 0.0);
   // frontier_planner_.findExplorationTarget(&map_test_, start, goal);
-  // if (status) ROS_INFO("Yeah");
+  // if (status) ROS_INFO("Gridmap connected");
 }
 
 
@@ -262,6 +271,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
                                 std::pow(map_goal_z - pos_(2), 2));
               ROS_INFO("Distance to goal: %f", distance);
               // TODO: check the hardcode according to spin speed and speed
+              if (distance > 3) recheck_cycles = (3 * 5 + 5) * frequency_;
               recheck_cycles = (distance * 5 + 5) * frequency_;
 
               // Gen arguments needed for getJpsTraj function.
@@ -492,13 +502,6 @@ bool Nav2D::preparePlan() {
       for (int j = -cell_robot_radius_; j < cell_robot_radius_; j++)
         current_map_.setData(x + i, y + j, 0);
   ROS_INFO("prepare plan ready, set Startpoint as %d", start_point_);
-
-  // Compute map inflation
-  if (!map_inflated_){
-    map_inflation_tool_.inflateMap(&current_map_);
-    map_inflated_ = true;
-    inflated_map_publisher_.publish(current_map_.getMap());
-  }
   return true;
 }
 

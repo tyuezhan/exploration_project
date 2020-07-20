@@ -27,7 +27,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
 	
 	Queue::iterator next;
 	double distance;
-	double linear = map->getResolution();
+	double resolution = map->getResolution();
 	bool foundFrontier = false;
 	int cellCount = 0;
 	double obstacle_dis;
@@ -55,12 +55,10 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       map->getCoordinates(start_x, start_y, start);
       map->getCoordinates(goal_x, goal_y, index);
       double goal_dis = euclidean((double)start_x, (double)start_y, (double)goal_x, (double)goal_y);
-      // double euclidean_dis = std::sqrt(std::pow((double)start_x - (double)goal_x, 2) + std::pow((double)start_y - (double)goal_y, 2));
-      // ROS_INFO("Euclidean dis: %f, start_x: %u, goal_x: %u, start_y: %u, goal_y: %u", goal_dis, start_x, goal_x, start_y, goal_y);
       
       // scan nearby obstacle
       Queue scan_quque;
-      scan_cell_distance_ = scan_distance_ / linear; 
+      scan_cell_distance_ = scan_distance_ / resolution; 
       Entry frontier_cell(0.0, index);
       scan_quque.insert(frontier_cell);
       mapSize = map->getSize();
@@ -79,9 +77,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
         distance_to_frontier = scan_next->first;
         unsigned int curr_index = scan_next->second;
         scan_quque.erase(scan_next);
-        // ROS_INFO("Current cell value: %c", map->getData(curr_index));
         if (!map->isObstacle(curr_index)){
-          // ROS_INFO("Enter is free");
           unsigned int neighbor[4];
           neighbor[0] = curr_index - 1;               // left
           neighbor[1] = curr_index + 1;               // right
@@ -96,9 +92,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
               if(map->getCoordinates(check_x, check_y, i)) {
                 double check_dis = euclidean((double)check_x, (double)check_y, (double)goal_x, (double)goal_y);
                 if (check_dis <= scan_cell_distance_) {
-                  // ROS_INFO("Check dis: %f, scan dis: %f", check_dis, scan_cell_distance_);
-                  scan_quque.insert(Entry(distance_to_frontier+linear, i));
-                  frontier_plan[i] = distance_to_frontier+linear;
+                  scan_quque.insert(Entry(distance_to_frontier+resolution, i));
+                  frontier_plan[i] = distance_to_frontier+resolution;
                 }
               }
             }
@@ -108,9 +103,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
           found_obstacle = true;
           unsigned int obs_x, obs_y;
           map->getCoordinates(obs_x, obs_y, curr_index);
-          // obstacle_dis = std::sqrt(std::pow((double)obs_x - (double)goal_x, 2) + std::pow((double)obs_x - (double)goal_y, 2));
           obstacle_dis = euclidean((double)obs_x, (double)obs_y, (double)goal_x, (double)goal_y);
-          // ROS_INFO("Obs dis: %f, obs_x: %u, obs_y:%u, goal_x:%u, goal_y:%u, double value: obs_x: %f, obs_y:%f, goal_x:%f, goal_y:%f", obstacle_dis, obs_x, obs_y, goal_x, goal_y, (double)obs_x, (double)obs_y, (double)goal_x, (double)goal_y);
           break;
         }
       }
@@ -119,7 +112,9 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
         obstacle_dis = scan_cell_distance_;
       }
       // calculate total cost and put frontier into priority queue
-      double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * 40;
+      double penalize_factor = 5;
+      if (obstacle_dis < (0.5 / resolution)) penalize_factor = 30;
+      double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor;
       // ROS_INFO("Total cost for curr frontier: %f, obstacle dis: %f, euclidean: %f, scan dis: %f", total_cost, obstacle_dis, goal_dis, scan_cell_distance_);
       frontier_queue.insert(Entry(total_cost, index));
       delete[] frontier_plan;
@@ -137,8 +132,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
 				unsigned int i = ind[it];
 				if(map->isFree(i) && plan[i] == -1)
 				{
-					queue.insert(Entry(distance+linear, i));
-					plan[i] = distance+linear;
+					queue.insert(Entry(distance+resolution, i));
+					plan[i] = distance+resolution;
 				}
 			}
 		}
@@ -177,6 +172,10 @@ double FrontierPlanner::euclidean(double x1, double y1, double x2, double y2) {
 
 void FrontierPlanner::setObstacleScanRange(double range) {
   scan_distance_ = range;
+}
+
+void FrontierPlanner::setGoalFrontierThreshold(int threshold) {
+  goal_frontier_threshold_ = threshold;
 }
 
 // int FrontierPlanner::findExplorationTarget(grid_map::GridMap* map, grid_map::Position start, grid_map::Position &goal) {
