@@ -8,16 +8,16 @@
 		<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
 		<param name="frame_id" type="string" value="ddk/odom" />
 
-        <param name="resolution" type="double" value="0.05" />
+    <param name="resolution" type="double" value="0.05" />
 
 		<!-- maximum range to integrate (speedup!) -->
 		<param name="sensor_model/max_range" value="5.0" />
 
 		<!-- data source to integrate (PointCloud2) -->
 		<remap from="cloud_in" to="rgbd/depth/points" />
-        <!-- <param name="base_frame_id" type="string" value="/ddk/ground_truth/odom"/> -->
+    <!-- <param name="base_frame_id" type="string" value="/ddk/ground_truth/odom"/> -->
 
-        <param name="latch" type="bool" value="false"/>
+    <param name="latch" type="bool" value="false"/>
 
 		<param name="occupancy_min_z" value="0.05"/>
 
