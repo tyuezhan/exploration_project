@@ -45,10 +45,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
 		unsigned int index = next->second;
 		queue.erase(next);
 		
-		// Add all adjacent cells
-		if(map->isFrontier(index))
-		{
-			// We reached the border of the map, which is unexplored terrain as well:
+		if(map->isFrontier(index)) {
+      // We reached the border of the map, which is unexplored terrain as well:
 			foundFrontier = true;
       // Calculate two distance.
       unsigned int start_x = 0, start_y = 0, goal_x = 0, goal_y = 0;
@@ -118,8 +116,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       // ROS_INFO("Total cost for curr frontier: %f, obstacle dis: %f, euclidean: %f, scan dis: %f", total_cost, obstacle_dis, goal_dis, scan_cell_distance_);
       frontier_queue.insert(Entry(total_cost, index));
       delete[] frontier_plan;
-		} else
-		{
+		} else {
 			unsigned int ind[4];
 
 			ind[0] = index - 1;               // left
@@ -127,11 +124,10 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
 			ind[2] = index - map->getWidth(); // up
 			ind[3] = index + map->getWidth(); // down
 			
-			for(unsigned int it = 0; it < 4; it++)
-			{
+			for(unsigned int it = 0; it < 4; it++) {
 				unsigned int i = ind[it];
-				if(map->isFree(i) && plan[i] == -1)
-				{
+
+				if(map->isFree(i) && plan[i] == -1) {
 					queue.insert(Entry(distance+resolution, i));
 					plan[i] = distance+resolution;
 				}
@@ -156,6 +152,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
     if (cellCount > 50) {
       return EXPL_FINISHED;
     } else {
+      ROS_INFO("frontier queue empty, checked less than 50 cells.");
       return EXPL_FAILED;
     }
   }

@@ -16,7 +16,7 @@
       <param name="robot_frame_" type="string" value="ddk/base_link"/>
 
       <!-- cell robot radius is used to clean the robot footprint in occupancy map -->
-      <param name="cell_robot_radius" type="int" value="1"/>
+      <param name="cell_robot_radius" type="int" value="3"/>
       <!-- frequency means the frequency of the exploration while loop -->
       <param name="frequency" type="double" value="2"/>
       <!-- thredhold value of occupied cell in occupancy grid -->

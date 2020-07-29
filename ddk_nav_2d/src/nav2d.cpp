@@ -90,6 +90,7 @@ void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
     ROS_INFO("Inflation cell radius: %u", cell_map_inflation_radius_);
 		map_inflation_tool_.computeCaches(cell_map_inflation_radius_);
     current_map_.setLethalCost((signed char)occupied_cell_threshold_);
+    inflated_map_.setLethalCost((signed char)occupied_cell_threshold_);
   }
   map_updated_ = true;
   inflated_map_inflated_ = false;
@@ -142,7 +143,6 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
   // unsigned int recheck_cycles;
   float last_goal_x, last_goal_y;
 
-  //TODO: add this to pnh_ param later if needed.
   // set to change use traj tracker / TrackPath.
   bool track_path = true;
 
@@ -209,16 +209,16 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     if (!moving || recheck){
       boost::mutex::scoped_lock lock(map_mutex_);
       if (preparePlan()) {
-        int result = frontier_planner_.findExplorationTarget(&current_map_, start_point_, goal_point_);
+        int result = frontier_planner_.findExplorationTarget(&inflated_map_, start_point_, goal_point_);
         switch (result) {
 
         case EXPL_TARGET_SET:
           ROS_INFO("EXPL TARGET SET");
           if (recheck || !moving) {
             unsigned int goal_x = 0, goal_y = 0;
-            if (current_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
-              float map_goal_x = current_map_.getOriginX() + (((double)goal_x + 0.5) * current_map_.getResolution());
-              float map_goal_y = current_map_.getOriginY() + (((double)goal_y + 0.5) * current_map_.getResolution());
+            if (inflated_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
+              float map_goal_x = inflated_map_.getOriginX() + (((double)goal_x + 0.5) * inflated_map_.getResolution());
+              float map_goal_y = inflated_map_.getOriginY() + (((double)goal_y + 0.5) * inflated_map_.getResolution());
               float map_goal_z = flight_height_;
 
               if (recheck && moving){
@@ -239,10 +239,6 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               last_goal_x = map_goal_x;
               last_goal_y = map_goal_y;
 
-              // DEBUG use only, delete later
-              // float map_goal_x = 1.0;
-              // float map_goal_y = 0.0;
-              // float map_goal_z = 0.6;
               float yaw;
               yaw = atan2(pos_(1) - map_goal_y, pos_(0) - map_goal_x);
               yaw += PI;
@@ -264,7 +260,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
 
               ROS_INFO("goal: %f, %f, %f, %f", map_goal_x, map_goal_y, map_goal_z, yaw);
               // Check goal occupancy:
-              signed char goal_value = current_map_.getData(goal_point_);
+              signed char goal_value = inflated_map_.getData(goal_point_);
               ROS_INFO("Current Goal Value is: %u", goal_value);
               double distance = std::sqrt(std::pow(map_goal_x - pos_(0), 2) +
                                 std::pow(map_goal_y - pos_(1), 2) +
@@ -306,11 +302,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               goal_publisher_.publish(goal);
 
               bool ret = getJpsTraj(local_time, tf_odom_to_world, goal, track_path);
-              // if (ret) {
-              //   ROS_INFO("get jps traj return true");
-              // }
-              // if (!ret)
-              //   ROS_INFO("get jps return false");
+
             }
           }
           break;
@@ -356,12 +348,6 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
           explore_action_server_ptr_->publishFeedback(fb);
         }
       }
-      // else {
-      //   explore_action_server_ptr_->setAborted();
-      //   ROS_WARN("Exploration has failed!");
-      //   node_status_ = NAV_ST_IDLE;
-      //   return;
-      // }
     }
 
     // Sleep remaining time
@@ -480,11 +466,11 @@ bool Nav2D::getMapIndex() {
   }
   double world_x = transform.getOrigin().x();
   double world_y = transform.getOrigin().y();
-  unsigned int current_x = (world_x - current_map_.getOriginX()) / current_map_.getResolution();
-  unsigned int current_y = (world_y - current_map_.getOriginY()) / current_map_.getResolution();
+  unsigned int current_x = (world_x - inflated_map_.getOriginX()) / inflated_map_.getResolution();
+  unsigned int current_y = (world_y - inflated_map_.getOriginY()) / inflated_map_.getResolution();
   
   unsigned int start_point;
-  current_map_.getIndex(current_x, current_y, start_point);
+  inflated_map_.getIndex(current_x, current_y, start_point);
   start_point_ = start_point;
 
   // ROS_INFO("Get current map index: worldX:%f, worldY:%f, mapInd_x:%d, mapInd_y:%d, startpoint:%d", world_x, world_y, current_x, current_y, start_point);
@@ -497,10 +483,12 @@ bool Nav2D::preparePlan() {
 
   // Clear robot footprint in map
   unsigned int x = 0, y = 0;
-  if (current_map_.getCoordinates(x, y, start_point_))
+  if (inflated_map_.getCoordinates(x, y, start_point_))
     for (int i = -cell_robot_radius_; i < cell_robot_radius_; i++)
       for (int j = -cell_robot_radius_; j < cell_robot_radius_; j++)
-        current_map_.setData(x + i, y + j, 0);
+        inflated_map_.setData(x + i, y + j, 0);
+
+  inflated_map_publisher_.publish(inflated_map_.getMap());
   ROS_INFO("prepare plan ready, set Startpoint as %d", start_point_);
   return true;
 }
@@ -529,17 +517,17 @@ bool Nav2D::getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_trans
 }
 
 double Nav2D::getGoalHeading(unsigned int goal_index) {
-  unsigned int map_width = current_map_.getWidth();
+  unsigned int map_width = inflated_map_.getWidth();
   int y = goal_index / map_width;
   int x = goal_index % map_width;
-  if(current_map_.getData(x-1, y-1) == -1) return 225*PI/180;
-  if(current_map_.getData(x-1, y  ) == -1) return 180*PI/180;
-  if(current_map_.getData(x-1, y+1) == -1) return 135*PI/180;
-  if(current_map_.getData(x  , y-1) == -1) return 270*PI/180;
-  if(current_map_.getData(x  , y+1) == -1) return 90*PI/180;
-  if(current_map_.getData(x+1, y-1) == -1) return 315*PI/180;
-  if(current_map_.getData(x+1, y  ) == -1) return 0.0;
-  if(current_map_.getData(x+1, y+1) == -1) return 45*PI/180;
+  if(inflated_map_.getData(x-1, y-1) == -1) return 225*PI/180;
+  if(inflated_map_.getData(x-1, y  ) == -1) return 180*PI/180;
+  if(inflated_map_.getData(x-1, y+1) == -1) return 135*PI/180;
+  if(inflated_map_.getData(x  , y-1) == -1) return 270*PI/180;
+  if(inflated_map_.getData(x  , y+1) == -1) return 90*PI/180;
+  if(inflated_map_.getData(x+1, y-1) == -1) return 315*PI/180;
+  if(inflated_map_.getData(x+1, y  ) == -1) return 0.0;
+  if(inflated_map_.getData(x+1, y+1) == -1) return 45*PI/180;
   
   return -1.0;
 }

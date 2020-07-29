@@ -14,8 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
   geometry_msgs
   nav2d_navigator
-  nav2d_operator
-  nav2d_msgs
   kr_mav_msgs
   kr_tracker_msgs
   eigen_conversions
@@ -61,8 +59,6 @@ catkin_package(
     actionlib
     actionlib_msgs
     geometry_msgs
-    nav2d_msgs
-    nav2d_operator
     nav2d_navigator
     kr_mav_msgs
 )
