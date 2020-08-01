@@ -111,7 +111,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       }
       // calculate total cost and put frontier into priority queue
       double penalize_factor = 5;
-      if (obstacle_dis < (0.5 / resolution)) penalize_factor = 30;
+      if (obstacle_dis < (0.2 / resolution)) penalize_factor = 30;
       double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor;
       // ROS_INFO("Total cost for curr frontier: %f, obstacle dis: %f, euclidean: %f, scan dis: %f", total_cost, obstacle_dis, goal_dis, scan_cell_distance_);
       frontier_queue.insert(Entry(total_cost, index));

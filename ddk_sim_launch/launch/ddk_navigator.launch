@@ -21,7 +21,7 @@
       <param name="frequency" type="double" value="2"/>
       <!-- thredhold value of occupied cell in occupancy grid -->
       <param name="occupied_cell_threshold" type="int" value="1"/>
-      <param name="map_inflation_radius" type="double" value="0.5"/>
+      <param name="map_inflation_radius" type="double" value="0.25"/>
 
       <param name="flight_height" type="double" value="1.2"/>
       <param name="goal_recheck" type="bool" value="true"/>
