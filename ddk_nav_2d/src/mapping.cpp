@@ -2,14 +2,14 @@
 #include <ros/ros.h>
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "mapping");
-	ros::NodeHandle pnh_("~");
+  ros::init(argc, argv, "mapping");
+  ros::NodeHandle pnh_("~");
 
   SDFMap::Ptr sdf_map_;
   sdf_map_.reset(new SDFMap);
   sdf_map_->initMap(pnh_);
   // sdf_map.initMap(pnh_);
 
-	ros::spin();
-	return 0;
+  ros::spin();
+  return 0;
 }

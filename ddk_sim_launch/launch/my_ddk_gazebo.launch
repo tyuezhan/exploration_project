@@ -4,7 +4,7 @@
   <arg name="gui" default="true"/>
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <!-- <arg name="world_name" value="$(find mrsl_quadrotor_description)/worlds/$(arg world).world"/> -->
+    <arg name="world_name" value="$(find mrsl_quadrotor_description)/worlds/$(arg world).world"/>
     <arg name="world_name" value="$(find ddk_sim_launch)/worlds/smalloffice_texture.world"/>
     <arg name="debug" value="false" />
     <arg name="verbose" value="true" />
@@ -13,4 +13,10 @@
     <arg name="use_sim_time" value="true"/>
     <arg name="headless" value="false"/>
   </include>
+  <!-- <include file="$(find aws_robomaker_bookstore_world)/launch/bookstore.launch"> -->
+  <!-- <include file="$(find aws_robomaker_hospital_world)/launch/hospital.launch"> -->
+  <!-- <include file="$(find aws_robomaker_small_warehouse_world)/launch/small_warehouse.launch" > -->
+   <!-- <arg name="gui" value="true"/> -->
+  <!-- </include> -->
+
 </launch>

@@ -11,43 +11,43 @@ FrontierPlanner::~FrontierPlanner() {}
 
 int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, unsigned int &goal)
 {
-	// Create some workspace for the wavefront algorithm
-	unsigned int mapSize = map->getSize();
-	double* plan = new double[mapSize];
-	for(unsigned int i = 0; i < mapSize; i++)
-	{
-		plan[i] = -1;
-	}
-	
-	// Initialize the queue with the robot position
-	Queue queue;
-	Entry startPoint(0.0, start);
-	queue.insert(startPoint);
-	plan[start] = 0;
-	
-	Queue::iterator next;
-	double distance;
-	double resolution = map->getResolution();
-	bool foundFrontier = false;
-	int cellCount = 0;
-	double obstacle_dis;
+  // Create some workspace for the wavefront algorithm
+  unsigned int mapSize = map->getSize();
+  double* plan = new double[mapSize];
+  for(unsigned int i = 0; i < mapSize; i++)
+  {
+    plan[i] = -1;
+  }
+  
+  // Initialize the queue with the robot position
+  Queue queue;
+  Entry startPoint(0.0, start);
+  queue.insert(startPoint);
+  plan[start] = 0;
+  
+  Queue::iterator next;
+  double distance;
+  double resolution = map->getResolution();
+  bool foundFrontier = false;
+  int cellCount = 0;
+  double obstacle_dis;
 
   // Init priority queue for frontier
   Queue frontier_queue;
 
-	// Do full search with weightless Dijkstra-Algorithm
-	while(!queue.empty())
-	{
-		cellCount++;
-		// Get the nearest cell from the queue
-		next = queue.begin();
-		distance = next->first;
-		unsigned int index = next->second;
-		queue.erase(next);
-		
-		if(map->isFrontier(index)) {
+  // Do full search with weightless Dijkstra-Algorithm
+  while(!queue.empty())
+  {
+    cellCount++;
+    // Get the nearest cell from the queue
+    next = queue.begin();
+    distance = next->first;
+    unsigned int index = next->second;
+    queue.erase(next);
+    
+    if(map->isFrontier(index)) {
       // We reached the border of the map, which is unexplored terrain as well:
-			foundFrontier = true;
+      foundFrontier = true;
       // Calculate two distance.
       unsigned int start_x = 0, start_y = 0, goal_x = 0, goal_y = 0;
       map->getCoordinates(start_x, start_y, start);
@@ -67,7 +67,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       }
       frontier_plan[index] = 0;
       Queue::iterator scan_next;
-	    double distance_to_frontier;
+      double distance_to_frontier;
       bool found_obstacle = false;
 
       while(!scan_quque.empty()){
@@ -116,28 +116,28 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       // ROS_INFO("Total cost for curr frontier: %f, obstacle dis: %f, euclidean: %f, scan dis: %f", total_cost, obstacle_dis, goal_dis, scan_cell_distance_);
       frontier_queue.insert(Entry(total_cost, index));
       delete[] frontier_plan;
-		} else {
-			unsigned int ind[4];
+    } else {
+      unsigned int ind[4];
 
-			ind[0] = index - 1;               // left
-			ind[1] = index + 1;               // right
-			ind[2] = index - map->getWidth(); // up
-			ind[3] = index + map->getWidth(); // down
-			
-			for(unsigned int it = 0; it < 4; it++) {
-				unsigned int i = ind[it];
+      ind[0] = index - 1;               // left
+      ind[1] = index + 1;               // right
+      ind[2] = index - map->getWidth(); // up
+      ind[3] = index + map->getWidth(); // down
+      
+      for(unsigned int it = 0; it < 4; it++) {
+        unsigned int i = ind[it];
 
-				if(map->isFree(i) && plan[i] == -1) {
-					queue.insert(Entry(distance+resolution, i));
-					plan[i] = distance+resolution;
-				}
-			}
-		}
-	}
+        if(map->isFree(i) && plan[i] == -1) {
+          queue.insert(Entry(distance+resolution, i));
+          plan[i] = distance+resolution;
+        }
+      }
+    }
+  }
 
-	ROS_DEBUG("Checked %d cells.", cellCount);	
-	delete[] plan;
-	
+  ROS_DEBUG("Checked %d cells.", cellCount);	
+  delete[] plan;
+  
   if (!frontier_queue.empty()){
     if (frontier_queue.size() <= 30) {
       ROS_INFO("Less than 30 frontiers. Return exploration finished.");
@@ -160,11 +160,11 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
 
 double FrontierPlanner::euclidean(double x1, double y1, double x2, double y2) {
   double x = x1 - x2;
-	double y = y1 - y2;
-	double dist;
-	dist = pow(x, 2) + pow(y, 2);      
-	dist = sqrt(dist);
-	return dist;
+  double y = y1 - y2;
+  double dist;
+  dist = pow(x, 2) + pow(y, 2);      
+  dist = sqrt(dist);
+  return dist;
 }
 
 void FrontierPlanner::setObstacleScanRange(double range) {

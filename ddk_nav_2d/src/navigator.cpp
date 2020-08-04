@@ -4,12 +4,12 @@
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "navigator");
-	ros::NodeHandle n;
-	
-	// RobotNavigator robNav;
-	Nav2D Nav2D;
+  ros::init(argc, argv, "navigator");
+  ros::NodeHandle n;
+  
+  // RobotNavigator robNav;
+  Nav2D Nav2D;
 
-	ros::spin();
-	return 0;
+  ros::spin();
+  return 0;
 }

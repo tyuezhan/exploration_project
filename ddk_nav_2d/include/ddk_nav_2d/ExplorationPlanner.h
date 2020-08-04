@@ -18,31 +18,31 @@ typedef std::map<unsigned int, geometry_msgs::Pose2D> PoseList;
 class RobotList
 {
 public:
-	RobotList()
-	{
-		ros::NodeHandle robotNode;
-		mOtherRobotsSubscriber = robotNode.subscribe("others", 10, &RobotList::receiveOtherPose, this);
-	}
-	
-	void receiveOtherPose(const nav2d_msgs::RobotPose::ConstPtr& msg)
-	{
-		mOtherRobots[msg->robot_id] = msg->pose;
-	}
-	
-	PoseList getRobots() { return mOtherRobots; }
-	
+  RobotList()
+  {
+    ros::NodeHandle robotNode;
+    mOtherRobotsSubscriber = robotNode.subscribe("others", 10, &RobotList::receiveOtherPose, this);
+  }
+  
+  void receiveOtherPose(const nav2d_msgs::RobotPose::ConstPtr& msg)
+  {
+    mOtherRobots[msg->robot_id] = msg->pose;
+  }
+  
+  PoseList getRobots() { return mOtherRobots; }
+  
 private:
-	ros::Subscriber mOtherRobotsSubscriber;
-	PoseList mOtherRobots;
+  ros::Subscriber mOtherRobotsSubscriber;
+  PoseList mOtherRobots;
 };
 
 // The base class for all exploration planners
 class ExplorationPlanner
 {
 public:
-	virtual ~ExplorationPlanner() {};
-	virtual int findExplorationTarget(GridMap* map, unsigned int start, unsigned int &goal) = 0;
-	
+  virtual ~ExplorationPlanner() {};
+  virtual int findExplorationTarget(GridMap* map, unsigned int start, unsigned int &goal) = 0;
+  
 };
 
 #endif

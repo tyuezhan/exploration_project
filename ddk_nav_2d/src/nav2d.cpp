@@ -88,7 +88,7 @@ void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
     ROS_INFO("Navigator is now initialized.");
     cell_map_inflation_radius_ = map_inflation_radius_ / current_map_.getResolution();
     ROS_INFO("Inflation cell radius: %u", cell_map_inflation_radius_);
-		map_inflation_tool_.computeCaches(cell_map_inflation_radius_);
+    map_inflation_tool_.computeCaches(cell_map_inflation_radius_);
     current_map_.setLethalCost((signed char)occupied_cell_threshold_);
     inflated_map_.setLethalCost((signed char)occupied_cell_threshold_);
   }

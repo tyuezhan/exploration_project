@@ -33,7 +33,7 @@
 #include <ddk_nav_2d/ExploreAction.h>
 #include <ddk_nav_2d/ExplorationPlanner.h>
 
-#include <grid_map_ros/grid_map_ros.hpp>
+// #include <grid_map_ros/grid_map_ros.hpp>
 
 #include <ddk_nav_2d/frontier_planner.h>
 
