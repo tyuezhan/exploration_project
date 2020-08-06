@@ -23,23 +23,19 @@ Nav2D::Nav2D() {
   pnh_.param<bool>("goal_recheck", goal_recheck_, true);
   pnh_.param<double>("obstacle_scan_range", obstacle_scan_range_, 1.0);
   pnh_.param<int>("goal_frontier_num_threshold", goal_frontier_threshold_, 30);
-  
+
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
-  pose_subscriber_ = nh_.subscribe("ground_truth/odom", 10, &Nav2D::poseSubscriberCB, this);
+  pose_subscriber_ = nh_.subscribe("odom", 10, &Nav2D::poseSubscriberCB, this);
   // Publisher
-  goal_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("navigator/goal_point", 5);
+  goal_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("goal_point", 5);
 
   //for debug usage
-  inflated_map_publisher_ = nh_.advertise<nav_msgs::OccupancyGrid>("navigator/inflated_map", 5);
+  inflated_map_publisher_ = nh_.advertise<nav_msgs::OccupancyGrid>("inflated_map", 5);
 
   // Services
   srv_transition_ = nh_.serviceClient<kr_tracker_msgs::Transition>("trackers_manager/transition");
   jps_service_client_ = nh_.serviceClient<nav_msgs::GetPlan>("jps_plan_service");
-
-  // Action server
-  explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));
-  explore_action_server_ptr_->start();
 
   // Action client
   line_tracker_min_jerk_client_ptr_.reset(new LineClientType(nh_, "trackers_manager/line_tracker_min_jerk/LineTracker", true));
@@ -69,9 +65,13 @@ Nav2D::Nav2D() {
   // Strings for tracker transition
   line_tracker_min_jerk_ = "kr_trackers/LineTrackerMinJerk";
   traj_tracker_ = "kr_trackers/TrajectoryTracker";
-  
+
   frontier_planner_.setObstacleScanRange(obstacle_scan_range_);
   frontier_planner_.setGoalFrontierThreshold(goal_frontier_threshold_);
+
+  // Action server
+  explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));
+  explore_action_server_ptr_->start();
 }
 
 
@@ -95,7 +95,7 @@ void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
   map_updated_ = true;
   inflated_map_inflated_ = false;
 
-  // Compute map inflation 
+  // Compute map inflation
   if (!inflated_map_inflated_){
     map_inflation_tool_.inflateMap(&inflated_map_);
     inflated_map_inflated_ = true;
@@ -190,7 +190,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
       explore_action_server_ptr_->setAborted();
       return;
     }
-    
+
     // check current status
     if (track_path_status_ == NAV_ST_IDLE && traj_tracker_status_ == NAV_ST_IDLE && line_tracker_status_ == NAV_ST_IDLE){
       moving = false;
@@ -328,13 +328,13 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
           ROS_ERROR("Exploration planner returned invalid status code: %d!", result);
         }
       } else {
-        // Prepare plan failed. 
+        // Prepare plan failed.
         ROS_ERROR("Exploration failed, prepare plan failed.");
         explore_action_server_ptr_->setAborted();
         return;
       }
     }
-    
+
 
     if (node_status_ == NAV_ST_EXPLORING) {
       if (moving) {
@@ -468,7 +468,7 @@ bool Nav2D::getMapIndex() {
   double world_y = transform.getOrigin().y();
   unsigned int current_x = (world_x - inflated_map_.getOriginX()) / inflated_map_.getResolution();
   unsigned int current_y = (world_y - inflated_map_.getOriginY()) / inflated_map_.getResolution();
-  
+
   unsigned int start_point;
   inflated_map_.getIndex(current_x, current_y, start_point);
   start_point_ = start_point;
@@ -528,6 +528,6 @@ double Nav2D::getGoalHeading(unsigned int goal_index) {
   if(inflated_map_.getData(x+1, y-1) == -1) return 315*PI/180;
   if(inflated_map_.getData(x+1, y  ) == -1) return 0.0;
   if(inflated_map_.getData(x+1, y+1) == -1) return 45*PI/180;
-  
+
   return -1.0;
 }

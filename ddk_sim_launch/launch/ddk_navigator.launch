@@ -1,19 +1,22 @@
 <launch>
 
-  <!-- Some general parameters -->
-  <param name="use_sim_time" value="true" />
-
   <arg name="mav_name" default="ddk"/>
 
+  <arg name="map_frame" default="ddk/odom"/>
+  <arg name="robot_frame" default="ddk/base_link"/>
+
+  <arg name="odom_topic" default="ground_truth/odom"/>
+
   <group ns="$(arg mav_name)">
-  
+
     <node name="Navigator" pkg="ddk_nav_2d" type="navigator" output="screen" >
       <remap from="jps_plan_service" to="jps2d_plan_service"/>
+      <remap from="odom" to="$(arg odom_topic)"/>
 
       <param name="min_recheck_period" type="double" value="15.0"/>
       <param name="server_wait_timeout" type="double" value="3.0"/>
-      <param name="map_frame" type="string" value="ddk/odom"/>
-      <param name="robot_frame_" type="string" value="ddk/base_link"/>
+      <param name="map_frame" type="string" value="$(arg map_frame)"/>
+      <param name="robot_frame" type="string" value="$(arg robot_frame)"/>
 
       <!-- cell robot radius is used to clean the robot footprint in occupancy map -->
       <param name="cell_robot_radius" type="int" value="3"/>
@@ -30,20 +33,20 @@
 
     </node>
     <node name="Explore" pkg="ddk_nav_2d" type="explore_client" />
-  
- 
+
+
     <!-- <node name="mapping" pkg="ddk_nav_2d" type="mapping" output="screen">
       <remap from="/sdf_map/cloud" to="rgbd/depth/points" />
       <remap from="/sdf_map/odom" to="ground_truth/odom" />
-     
-      <param name="sdf_map/resolution"      value="0.1" /> 
+
+      <param name="sdf_map/resolution"      value="0.1" />
       <param name="sdf_map/map_size_x" value="40.0"/>
       <param name="sdf_map/map_size_y" value="20.0"/>
-      <param name="sdf_map/map_size_z" value=" 5.0"/> 
-      <param name="sdf_map/local_update_range_x"  value="5.5" /> 
-      <param name="sdf_map/local_update_range_y"  value="5.5" /> 
-      <param name="sdf_map/local_update_range_z"  value="4.5" /> 
-      <param name="sdf_map/obstacles_inflation"     value="0.099" /> 
+      <param name="sdf_map/map_size_z" value=" 5.0"/>
+      <param name="sdf_map/local_update_range_x"  value="5.5" />
+      <param name="sdf_map/local_update_range_y"  value="5.5" />
+      <param name="sdf_map/local_update_range_z"  value="4.5" />
+      <param name="sdf_map/obstacles_inflation"     value="0.099" />
       <param name="sdf_map/local_bound_inflate"    value="0.0"/>
       <param name="sdf_map/local_map_margin" value="50"/>
       <param name="sdf_map/ground_height"        value="-1.0"/> -->
@@ -74,7 +77,7 @@
       <param name="sdf_map/virtual_ceil_height"   value="2.5"/>
       <param name="sdf_map/show_occ_time"  value="false"/>
       <param name="sdf_map/show_esdf_time" value="false"/>
-      <param name="sdf_map/pose_type"     value="1"/>  
+      <param name="sdf_map/pose_type"     value="1"/>
       <param name="sdf_map/frame_id"      value="/ddk/odom"/> -->
 
     <!-- </node> -->
