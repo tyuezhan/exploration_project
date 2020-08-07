@@ -278,21 +278,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               // Gen arguments needed for getJpsTraj function.
               double local_time = 0.0;
               // get current odom transform
-              
-              // tf1
-              // tf::StampedTransform transform;
-              // try {
-              //   tf_listener_.lookupTransform(map_frame_, robot_frame_, ros::Time(0), transform);
-              // } catch (tf::TransformException &ex) {
-              //   ROS_INFO("Couldn't get current odom transform");
-              //   ROS_WARN("%s", ex.what());
-              //   return;
-              // }
-              // Eigen::Affine3d dT_o_w;
-              // tf::transformTFToEigen(transform, dT_o_w);
-              // Eigen::Affine3f tf_odom_to_world = dT_o_w.cast<float>();
 
-              // Switch to tf2
               geometry_msgs::TransformStamped transformStamped;
               try {
                 transformStamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));
@@ -309,11 +295,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               // Check what is the expected goal yaw.
               double goal_yaw = getGoalHeading(goal_point_);
               if (goal_yaw < 0) ROS_ERROR("Goal heading -1.");
-
-              //tf1
-              // geometry_msgs::Quaternion goal_quaternion = tf::createQuaternionMsgFromYaw(goal_yaw);
-              
-              //tf2
+            
               tf2::Quaternion tf2_quaternion;
               tf2_quaternion.setRPY(0, 0, goal_yaw);
               geometry_msgs::Quaternion goal_quaternion = tf2::toMsg(tf2_quaternion);
@@ -485,16 +467,6 @@ bool Nav2D::transition(const std::string &tracker_str) {
 
 
 bool Nav2D::getMapIndex() {
-  // tf1
-  // tf::StampedTransform transform;
-  // try {
-  //   tf_listener_.lookupTransform(map_frame_, robot_frame_, ros::Time(0), transform);
-  // } catch (tf::TransformException ex) {
-  //   ROS_ERROR("Could not get robot position: %s", ex.what());
-  //   return false;
-  // }
-
-  // tf2
   geometry_msgs::TransformStamped transform_stamped;
   try {
     transform_stamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));

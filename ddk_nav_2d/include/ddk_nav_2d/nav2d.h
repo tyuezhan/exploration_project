@@ -1,9 +1,6 @@
 #include <ros/ros.h>
 #include <std_srvs/Trigger.h>
-// #include <pluginlib/class_loader.h>
 
-// #include <tf/transform_listener.h>
-// #include <tf_conversions/tf_eigen.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -34,7 +31,6 @@
 #include <ddk_nav_2d/commands.h>
 #include <ddk_nav_2d/MapInflationTool.h>
 #include <ddk_nav_2d/ExploreAction.h>
-// #include <ddk_nav_2d/ExplorationPlanner.h>
 
 // #include <grid_map_ros/grid_map_ros.hpp>
 

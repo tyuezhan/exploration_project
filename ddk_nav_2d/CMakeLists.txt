@@ -24,7 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 REQUIRED)
 find_package(octomap REQUIRED)
-find_package(PCL 1.7 REQUIRED)
+
 
 
 ################################################
@@ -71,8 +71,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include ${catkin_INCLUDE_DIRS})
-include_directories(${EIGEN3_INCLUDE_DIR} ${CHOLMOD_INCLUDE_DIR})
-include_directories(${PCL_INCLUDE_DIRS})
+include_directories(${EIGEN3_INCLUDE_DIR})
 
 link_directories(${PCL_LIBRARY_DIRS})
 
@@ -94,10 +93,9 @@ add_dependencies(frontier_planner ddk_nav_2d_generate_messages_cpp ${catkin_EXPO
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(explore_client ${catkin_LIBRARIES})
-target_link_libraries(navigator nav2d ${catkin_LIBRARIES})
-target_link_libraries(nav2d MapInflationTool ${catkin_LIBRARIES})
-target_link_libraries(nav2d ${CHOLMOD_LIBRARY} nlopt)
-target_link_libraries(nav2d frontier_planner)
+target_link_libraries(nav2d MapInflationTool frontier_planner ${catkin_LIBRARIES})
+target_link_libraries(navigator nav2d)
+
 #############
 ## Install ##
 #############
