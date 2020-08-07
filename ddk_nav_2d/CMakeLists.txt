@@ -7,8 +7,9 @@ add_definitions(-std=c++11 -g -O3 -ftree-vectorize -march=native)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   message_generation
-  tf
-  tf_conversions
+  tf2
+  tf2_eigen
+  tf2_geometry_msgs
   pluginlib
   actionlib
   actionlib_msgs
@@ -53,7 +54,9 @@ catkin_package(
   CATKIN_DEPENDS
     roscpp
     message_runtime
-    tf
+    tf2
+    tf2_eigen
+    tf2_geometry_msgs
     actionlib
     actionlib_msgs
     geometry_msgs

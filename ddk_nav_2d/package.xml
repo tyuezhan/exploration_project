@@ -12,8 +12,9 @@
 
   <build_depend>roscpp</build_depend>
   <build_depend>message_generation</build_depend>
-  <build_depend>tf</build_depend>
-  <build_depend>tf_conversions</build_depend>
+  <build_depend>tf2</build_depend>
+  <build_depend>tf2_eigen</build_depend>
+  <build_depend>tf2_geometry_msgs</build_depend>
   <build_depend>pluginlib</build_depend>
   <build_depend>actionlib</build_depend>
   <build_depend>actionlib_msgs</build_depend>
@@ -28,8 +29,9 @@
 
   <run_depend>roscpp</run_depend>
   <run_depend>message_runtime</run_depend>
-  <run_depend>tf</run_depend>
-  <run_depend>tf_conversions</run_depend>
+  <run_depend>tf2</run_depend>
+  <run_depend>tf2_eigen</run_depend>
+  <run_depend>tf2_geometry_msgs</run_depend>
   <run_depend>pluginlib</run_depend>
   <run_depend>actionlib</run_depend>
   <run_depend>actionlib_msgs</run_depend>

@@ -9,7 +9,7 @@
 
   <group ns="$(arg mav_name)">
 
-    <node name="Navigator" pkg="ddk_nav_2d" type="navigator" output="screen" >
+    <node name="navigator" pkg="ddk_nav_2d" type="navigator" output="screen" >
       <remap from="jps_plan_service" to="jps2d_plan_service"/>
       <remap from="odom" to="$(arg odom_topic)"/>
 

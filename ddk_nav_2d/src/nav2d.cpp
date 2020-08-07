@@ -52,8 +52,9 @@ Nav2D::Nav2D() {
   }
 
   // tf listener
-  robot_frame_ = tf_listener_.resolve(robot_frame_);
-  map_frame_ = tf_listener_.resolve(map_frame_);
+  tf_listener_ptr_.reset(new tf2_ros::TransformListener(tfBuffer_));
+  // robot_frame_ = tf_listener_.resolve(robot_frame_);
+  // map_frame_ = tf_listener_.resolve(map_frame_);
 
   // Init Params
   map_updated_ = false;
@@ -119,7 +120,11 @@ void Nav2D::poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom) {
   odom_q_ = Quat(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x,
                  odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
 
-  yaw_ = tf::getYaw(odom->pose.pose.orientation);
+  // yaw_ = tf2::getYaw(odom->pose.pose.orientation);
+  double yaw, _pitch, _roll;
+  tf2::Matrix3x3(tf2::Quaternion(odom->pose.pose.orientation.x, odom->pose.pose.orientation.y,
+                                 odom->pose.pose.orientation.z, odom->pose.pose.orientation.w)).getEulerYPR(yaw, _pitch, _roll);
+  yaw_ = yaw;
   last_odom_t_ = ros::Time::now();
 }
 
@@ -273,23 +278,46 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               // Gen arguments needed for getJpsTraj function.
               double local_time = 0.0;
               // get current odom transform
-              tf::StampedTransform transform;
+              
+              // tf1
+              // tf::StampedTransform transform;
+              // try {
+              //   tf_listener_.lookupTransform(map_frame_, robot_frame_, ros::Time(0), transform);
+              // } catch (tf::TransformException &ex) {
+              //   ROS_INFO("Couldn't get current odom transform");
+              //   ROS_WARN("%s", ex.what());
+              //   return;
+              // }
+              // Eigen::Affine3d dT_o_w;
+              // tf::transformTFToEigen(transform, dT_o_w);
+              // Eigen::Affine3f tf_odom_to_world = dT_o_w.cast<float>();
+
+              // Switch to tf2
+              geometry_msgs::TransformStamped transformStamped;
               try {
-                tf_listener_.lookupTransform(map_frame_, robot_frame_, ros::Time(0), transform);
-              } catch (tf::TransformException &ex) {
+                transformStamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));
+              } 
+              catch (tf2::TransformException &ex) {
                 ROS_INFO("Couldn't get current odom transform");
                 ROS_WARN("%s", ex.what());
                 return;
               }
               Eigen::Affine3d dT_o_w;
-              tf::transformTFToEigen(transform, dT_o_w);
+              dT_o_w = tf2::transformToEigen(transformStamped);
               Eigen::Affine3f tf_odom_to_world = dT_o_w.cast<float>();
 
               // Check what is the expected goal yaw.
               double goal_yaw = getGoalHeading(goal_point_);
               if (goal_yaw < 0) ROS_ERROR("Goal heading -1.");
 
-              geometry_msgs::Quaternion goal_quaternion = tf::createQuaternionMsgFromYaw(goal_yaw);
+              //tf1
+              // geometry_msgs::Quaternion goal_quaternion = tf::createQuaternionMsgFromYaw(goal_yaw);
+              
+              //tf2
+              tf2::Quaternion tf2_quaternion;
+              tf2_quaternion.setRPY(0, 0, goal_yaw);
+              geometry_msgs::Quaternion goal_quaternion = tf2::toMsg(tf2_quaternion);
+
               geometry_msgs::PoseStamped goal;
               goal.header.frame_id = map_frame_;
               goal.header.stamp = ros::Time::now();
@@ -457,13 +485,28 @@ bool Nav2D::transition(const std::string &tracker_str) {
 
 
 bool Nav2D::getMapIndex() {
-  tf::StampedTransform transform;
+  // tf1
+  // tf::StampedTransform transform;
+  // try {
+  //   tf_listener_.lookupTransform(map_frame_, robot_frame_, ros::Time(0), transform);
+  // } catch (tf::TransformException ex) {
+  //   ROS_ERROR("Could not get robot position: %s", ex.what());
+  //   return false;
+  // }
+
+  // tf2
+  geometry_msgs::TransformStamped transform_stamped;
   try {
-    tf_listener_.lookupTransform(map_frame_, robot_frame_, ros::Time(0), transform);
-  } catch (tf::TransformException ex) {
-    ROS_ERROR("Could not get robot position: %s", ex.what());
+    transform_stamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));
+  } 
+  catch (tf2::TransformException &ex) {
+    ROS_INFO("Couldn't get robot position");
+    ROS_WARN("%s", ex.what());
     return false;
   }
+  tf2::Stamped<tf2::Transform> transform;
+  tf2::fromMsg(transform_stamped, transform);
+
   double world_x = transform.getOrigin().x();
   double world_y = transform.getOrigin().y();
   unsigned int current_x = (world_x - inflated_map_.getOriginX()) / inflated_map_.getResolution();

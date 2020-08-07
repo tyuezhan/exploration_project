@@ -139,8 +139,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
   delete[] plan;
   
   if (!frontier_queue.empty()){
-    if (frontier_queue.size() <= 30) {
-      ROS_INFO("Less than 30 frontiers. Return exploration finished.");
+    if (frontier_queue.size() <= goal_frontier_threshold_) {
+      ROS_INFO("Less than %d frontiers. Return exploration finished.", goal_frontier_threshold_);
       return EXPL_FINISHED;
     }
     Queue::iterator iter;

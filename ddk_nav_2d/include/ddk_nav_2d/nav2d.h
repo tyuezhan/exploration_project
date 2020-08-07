@@ -2,8 +2,11 @@
 #include <std_srvs/Trigger.h>
 // #include <pluginlib/class_loader.h>
 
-#include <tf/transform_listener.h>
-#include <tf_conversions/tf_eigen.h>
+// #include <tf/transform_listener.h>
+// #include <tf_conversions/tf_eigen.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/server/simple_action_server.h>
@@ -31,7 +34,7 @@
 #include <ddk_nav_2d/commands.h>
 #include <ddk_nav_2d/MapInflationTool.h>
 #include <ddk_nav_2d/ExploreAction.h>
-#include <ddk_nav_2d/ExplorationPlanner.h>
+// #include <ddk_nav_2d/ExplorationPlanner.h>
 
 // #include <grid_map_ros/grid_map_ros.hpp>
 
@@ -107,7 +110,7 @@ private:
   bool map_updated_;
   GridMap current_map_, inflated_map_;
   Vec3 pos_;
-  float yaw_;
+  double yaw_;
   Quat odom_q_;
   ros::Time last_odom_t_;
   MapInflationTool map_inflation_tool_;
@@ -115,7 +118,8 @@ private:
   float flight_height_;
 
   // TF param
-  tf::TransformListener tf_listener_;
+  tf2_ros::Buffer tfBuffer_;
+  std::unique_ptr<tf2_ros::TransformListener> tf_listener_ptr_;
   std::string map_frame_;
   std::string robot_frame_;
 
