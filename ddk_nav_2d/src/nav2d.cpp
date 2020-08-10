@@ -433,6 +433,7 @@ void Nav2D::cancelCurrentGoal() {
     line_tracker_min_jerk_client_ptr_->cancelGoal();
     line_tracker_status_ = NAV_ST_IDLE;
   }
+  ROS_WARN("Cancel current goal");
 }
 
 
@@ -445,7 +446,7 @@ void Nav2D::lineTrackerDoneCB(const actionlib::SimpleClientGoalState &state, con
 void Nav2D::trackPathDoneCB(
     const actionlib::SimpleClientGoalState &state,
     const kr_replanning_msgs::TrackPathResultConstPtr &result) {
-  ROS_INFO("Track Path done.");
+  ROS_WARN("Track Path done. results: %d, %s", result->result, result->error_msg);
   track_path_status_ = NAV_ST_IDLE;
 }
 
