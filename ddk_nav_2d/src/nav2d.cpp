@@ -133,6 +133,11 @@ void Nav2D::poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom) {
 
 void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
   ROS_INFO("Nav2D: Received explore goal.");
+  if (!map_updated_) {
+    ROS_ERROR("No map received!");
+    explore_action_server_ptr_->setAborted();
+    return;
+  }
 
   if (node_status_ != NAV_ST_IDLE) {
     ROS_WARN("Navigator is busy!");
