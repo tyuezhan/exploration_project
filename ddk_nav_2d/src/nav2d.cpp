@@ -23,6 +23,7 @@ Nav2D::Nav2D() {
   pnh_.param<bool>("goal_recheck", goal_recheck_, true);
   pnh_.param<double>("obstacle_scan_range", obstacle_scan_range_, 1.0);
   pnh_.param<int>("goal_frontier_num_threshold", goal_frontier_threshold_, 30);
+  pnh_.param<double>("frontier_distance_threshold", frontier_distance_threshold_, 0.5);
 
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
@@ -69,6 +70,7 @@ Nav2D::Nav2D() {
 
   frontier_planner_.setObstacleScanRange(obstacle_scan_range_);
   frontier_planner_.setGoalFrontierThreshold(goal_frontier_threshold_);
+  frontier_planner_.setFrontierDistanceThreshold(frontier_distance_threshold_);
 
   // Action server
   explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));

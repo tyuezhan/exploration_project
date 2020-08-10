@@ -143,11 +143,28 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       ROS_INFO("Less than %d frontiers. Return exploration finished.", goal_frontier_threshold_);
       return EXPL_FINISHED;
     }
-    Queue::iterator iter;
-    iter = frontier_queue.begin();
-    goal = iter->second;
-    ROS_INFO("found %d fontiers, current frontier cost: %f", frontier_queue.size(), iter->first);
-    return EXPL_TARGET_SET;
+    for (Queue::iterator it = frontier_queue.begin(); it != frontier_queue.end(); it++){
+      unsigned int check_start_x = 0, check_start_y = 0, check_goal_x = 0, check_goal_y = 0;
+      map->getCoordinates(check_start_x, check_start_y, start);
+      map->getCoordinates(check_goal_x, check_goal_y, it->second);
+      double check_goal_dis = euclidean((double)check_start_x, (double)check_start_y, (double)check_goal_x, (double)check_goal_y);
+      if (check_goal_dis > (frontier_distance_threshold_ / resolution)) {
+        double frontier_dis = it->first;
+        goal = it->second;
+        ROS_INFO("found %d fontiers, current frontier cost: %f", frontier_queue.size(), frontier_dis);
+        return EXPL_TARGET_SET;
+      }
+      if (it == frontier_queue.end()) {
+        ROS_ERROR("No frontier out of %f meters", frontier_distance_threshold_);
+        return EXPL_FAILED;
+      }
+    }
+    // Queue::iterator iter;
+    // iter = frontier_queue.begin();
+    // goal = iter->second;
+
+    // ROS_INFO("found %d fontiers, current frontier cost: %f", frontier_queue.size(), frontier_dis);
+    // return EXPL_TARGET_SET;
   } else {
     if (cellCount > 50) {
       return EXPL_FINISHED;
@@ -173,6 +190,10 @@ void FrontierPlanner::setObstacleScanRange(double range) {
 
 void FrontierPlanner::setGoalFrontierThreshold(int threshold) {
   goal_frontier_threshold_ = threshold;
+}
+
+void FrontierPlanner::setFrontierDistanceThreshold(double distance) {
+  frontier_distance_threshold_ = distance;
 }
 
 // int FrontierPlanner::findExplorationTarget(grid_map::GridMap* map, grid_map::Position start, grid_map::Position &goal) {

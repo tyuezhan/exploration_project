@@ -124,6 +124,7 @@ private:
   bool goal_recheck_;
   double obstacle_scan_range_;
   int goal_frontier_threshold_;
+  double frontier_distance_threshold_;
 
   double min_recheck_period_;
   unsigned int start_point_;
