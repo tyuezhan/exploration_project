@@ -9,7 +9,7 @@
 
   <group ns="$(arg mav_name)">
 
-    <node name="navigator" pkg="ddk_nav_2d" type="navigator" output="screen" >
+    <node name="navigator" pkg="ddk_nav_2d" type="navigator" output="screen" launch-prefix="valgrind">
       <remap from="jps_plan_service" to="jps2d_plan_service"/>
       <remap from="odom" to="$(arg odom_topic)"/>
 
@@ -31,6 +31,7 @@
       <param name="obstacle_scan_range" type="double" value="1.0"/>
       <param name="goal_frontier_num_threshold" type="int" value="30" />
       <param name="frontier_distance_threshold" type="double" value="0.5" />
+      <param name="frontier_fov" type="double" value="120.0" />
 
     </node>
     <node name="Explore" pkg="ddk_nav_2d" type="explore_client" />

@@ -1,5 +1,8 @@
 #include <ddk_nav_2d/frontier_planner.h>
 #include <math.h>
+
+#define PI 3.14159265
+
 typedef std::multimap<double,unsigned int> Queue;
 typedef std::pair<double,unsigned int> Entry;
 
@@ -9,7 +12,7 @@ FrontierPlanner::FrontierPlanner() {
 FrontierPlanner::~FrontierPlanner() {}
 
 
-int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, unsigned int &goal) {
+int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, unsigned int start, unsigned int &goal) {
   // Create some workspace for the wavefront algorithm
   unsigned int mapSize = map->getSize();
   double* plan = new double[mapSize];
@@ -53,6 +56,20 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       map->getCoordinates(goal_x, goal_y, index);
       double goal_dis = euclidean((double)start_x, (double)start_y, (double)goal_x, (double)goal_y);
       
+      double fov_cost = 0;
+      float goal_yaw;
+      goal_yaw = atan2(goal_y, goal_x);
+      // goal_yaw = atan2(start_y - goal_y, start_x - goal_x);
+      // goal_yaw = goal_yaw + PI;
+      // ROS_INFO("Goal yaw is: %f, current yaw is: %f", goal_yaw, current_yaw);
+      double diff = std::abs(goal_yaw - current_yaw);
+      // if (diff > 2 * PI) diff -= 2 * PI;
+      if (diff > PI) diff = 2*PI - diff;
+      if (diff > fov_range_ / 2 * PI / 180) {
+        fov_cost = 100;
+        // ROS_INFO("penalize ouside fov");
+      }
+
       // scan nearby obstacle
       Queue scan_quque;
       scan_cell_distance_ = scan_distance_ / resolution; 
@@ -111,7 +128,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, unsigned int start, uns
       // calculate total cost and put frontier into priority queue
       double penalize_factor = 5;
       if (obstacle_dis < (0.2 / resolution)) penalize_factor = 30;
-      double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor;
+      double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
       // ROS_INFO("Total cost for curr frontier: %f, obstacle dis: %f, euclidean: %f, scan dis: %f", total_cost, obstacle_dis, goal_dis, scan_cell_distance_);
       frontier_queue.insert(Entry(total_cost, index));
       delete[] frontier_plan;
@@ -198,6 +215,10 @@ void FrontierPlanner::setGoalFrontierThreshold(int threshold) {
 
 void FrontierPlanner::setFrontierDistanceThreshold(double distance) {
   frontier_distance_threshold_ = distance;
+}
+
+void FrontierPlanner::setFovRange(double fov){
+  fov_range_ = fov;
 }
 
 // int FrontierPlanner::findExplorationTarget(grid_map::GridMap* map, grid_map::Position start, grid_map::Position &goal) {

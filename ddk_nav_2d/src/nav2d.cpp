@@ -24,6 +24,7 @@ Nav2D::Nav2D() {
   pnh_.param<double>("obstacle_scan_range", obstacle_scan_range_, 1.0);
   pnh_.param<int>("goal_frontier_num_threshold", goal_frontier_threshold_, 30);
   pnh_.param<double>("frontier_distance_threshold", frontier_distance_threshold_, 0.5);
+  pnh_.param<double>("frontier_fov", frontier_fov_, 90.0);
 
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
@@ -71,6 +72,7 @@ Nav2D::Nav2D() {
   frontier_planner_.setObstacleScanRange(obstacle_scan_range_);
   frontier_planner_.setGoalFrontierThreshold(goal_frontier_threshold_);
   frontier_planner_.setFrontierDistanceThreshold(frontier_distance_threshold_);
+  frontier_planner_.setFovRange(frontier_fov_);
 
   // Action server
   explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));
@@ -221,7 +223,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     if (!moving || recheck){
       boost::mutex::scoped_lock lock(map_mutex_);
       if (preparePlan()) {
-        int result = frontier_planner_.findExplorationTarget(&inflated_map_, start_point_, goal_point_);
+        int result = frontier_planner_.findExplorationTarget(&inflated_map_, yaw_, start_point_, goal_point_);
         switch (result) {
 
         case EXPL_TARGET_SET:

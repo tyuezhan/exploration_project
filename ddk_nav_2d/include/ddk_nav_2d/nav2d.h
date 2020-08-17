@@ -112,6 +112,7 @@ private:
   MapInflationTool map_inflation_tool_;
   bool inflated_map_inflated_;
   float flight_height_;
+  double frontier_fov_;
 
   // TF param
   tf2_ros::Buffer tfBuffer_;
