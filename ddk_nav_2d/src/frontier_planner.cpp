@@ -54,7 +54,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       unsigned int start_x = 0, start_y = 0, goal_x = 0, goal_y = 0;
       map->getCoordinates(start_x, start_y, start);
       map->getCoordinates(goal_x, goal_y, index);
-      double goal_dis = euclidean((double)start_x, (double)start_y, (double)goal_x, (double)goal_y);
+      // double goal_dis = euclidean((double)start_x, (double)start_y, (double)goal_x, (double)goal_y);
       
       double fov_cost = 0;
       float goal_yaw;
@@ -128,7 +128,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       // calculate total cost and put frontier into priority queue
       double penalize_factor = 5;
       if (obstacle_dis < (0.2 / resolution)) penalize_factor = 30;
-      double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
+      // double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
+      double total_cost = (distance / resolution) + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
       // ROS_INFO("Total cost for curr frontier: %f, obstacle dis: %f, euclidean: %f, scan dis: %f", total_cost, obstacle_dis, goal_dis, scan_cell_distance_);
       frontier_queue.insert(Entry(total_cost, index));
       delete[] frontier_plan;
