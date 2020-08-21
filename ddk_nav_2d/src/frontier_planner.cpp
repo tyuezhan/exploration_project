@@ -62,11 +62,12 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       // goal_yaw = atan2(start_y - goal_y, start_x - goal_x);
       // goal_yaw = goal_yaw + PI;
       // ROS_INFO("Goal yaw is: %f, current yaw is: %f", goal_yaw, current_yaw);
-      double diff = std::abs(goal_yaw - current_yaw);
-      // if (diff > 2 * PI) diff -= 2 * PI;
-      if (diff > PI) diff = 2*PI - diff;
-      if (diff > fov_range_ / 2 * PI / 180) {
-        fov_cost = 100;
+      double diff2 = std::abs(goal_yaw - current_yaw);
+      double diff = std::abs(angles::shortest_angular_distance(current_yaw, goal_yaw));
+      // ROS_INFO("diff2: %f, diff: %f", diff2, diff);
+      // if (diff > PI) diff = 2*PI - diff;
+      if (diff > angles::from_degrees(fov_range_ / 2)) {
+        fov_cost = 200;
         // ROS_INFO("penalize ouside fov");
       }
 

@@ -4,6 +4,7 @@
 
 // #include <grid_map_ros/grid_map_ros.hpp>
 #include <ddk_nav_2d/GridMap.h>
+#include <angles/angles.h>
 
 #define EXPL_TARGET_SET 1
 #define EXPL_FINISHED   2
