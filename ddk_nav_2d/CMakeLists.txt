@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   geometry_msgs
+  std_msgs
   nav2d_navigator
   kr_mav_msgs
   kr_tracker_msgs

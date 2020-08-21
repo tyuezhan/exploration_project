@@ -7,6 +7,11 @@ typedef std::multimap<double,unsigned int> Queue;
 typedef std::pair<double,unsigned int> Entry;
 
 FrontierPlanner::FrontierPlanner() {
+  frontier_costs_pub_ = nh_.advertise<visualization_msgs::Marker>("frontier_cost", 5);
+  penalize_factor_ = 10;
+  obstacle_penalize_dis_ = 0.2;
+  close_obstacle_penalize_factor_ = 50;
+  fov_cost_ = 1000;
 }
 
 FrontierPlanner::~FrontierPlanner() {}
@@ -67,7 +72,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       // ROS_INFO("diff2: %f, diff: %f", diff2, diff);
       // if (diff > PI) diff = 2*PI - diff;
       if (diff > angles::from_degrees(fov_range_ / 2)) {
-        fov_cost = 200;
+        fov_cost = fov_cost_;
         // ROS_INFO("penalize ouside fov");
       }
 
@@ -127,11 +132,11 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
         obstacle_dis = scan_cell_distance_;
       }
       // calculate total cost and put frontier into priority queue
-      double penalize_factor = 5;
-      if (obstacle_dis < (0.2 / resolution)) penalize_factor = 30;
+      double penalize_factor = penalize_factor_;
+      if (obstacle_dis < (obstacle_penalize_dis_ / resolution)) penalize_factor = close_obstacle_penalize_factor_;
       // double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
       double total_cost = (distance / resolution) + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
-      // ROS_INFO("Total cost for curr frontier: %f, obstacle dis: %f, euclidean: %f, scan dis: %f", total_cost, obstacle_dis, goal_dis, scan_cell_distance_);
+      ROS_INFO("Total cost for curr frontier: %f, path cost: %f, obs cost: %f, fov_cost: %f", total_cost, (distance / resolution), (scan_cell_distance_ - obstacle_dis) * penalize_factor, fov_cost);
       frontier_queue.insert(Entry(total_cost, index));
       delete[] frontier_plan;
     } else {
@@ -157,6 +162,53 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
   delete[] plan;
   
   if (!frontier_queue.empty()){
+    // visualization
+    visualization_msgs::Marker frontier_marker;
+    frontier_marker.scale.x = .05;
+    frontier_marker.scale.y = .05;
+    frontier_marker.scale.z = .05;
+    frontier_marker.color.a = 1;
+    frontier_marker.color.r = 1;
+    frontier_marker.pose.orientation.w = 1.0;
+    frontier_marker.header.frame_id = std::string("ddk/odom");
+    frontier_marker.header.stamp = ros::Time::now();
+    frontier_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+    std_msgs::ColorRGBA color;
+    color.a = 1;
+    geometry_msgs::Point frontier_pt;
+
+    for (Queue::iterator it=frontier_queue.begin(); it != frontier_queue.end(); it++) {
+      double frontier_cost = it->first;
+      double frontier_ind = it->second;
+      unsigned int frontier_x = 0, frontier_y = 0;
+      map->getCoordinates(frontier_x, frontier_y, frontier_ind);
+      if (frontier_cost < fov_cost_/2){
+        color.r = 0.0;
+        color.g = 1.0;
+        color.b = 0.0;
+      } else if (frontier_cost < fov_cost_){
+        color.r = 0.0;
+        color.g = 0.0;
+        color.b = 1.0;
+        
+      } else {
+        color.r = 1.0;
+        color.g = 0.0;
+        color.b = 0.0;
+      }
+      float map_frontier_x = map->getOriginX() + (((double)frontier_x + 0.5) * resolution);
+      float map_frontier_y = map->getOriginY() + (((double)frontier_y + 0.5) * resolution);
+      float map_frontier_z = 0.5;
+
+      frontier_pt.x = map_frontier_x;
+      frontier_pt.y = map_frontier_y;
+      frontier_pt.z = map_frontier_z;
+      ROS_INFO("frontier: x: %f, y: %f, z: %f", map_frontier_x, map_frontier_y, map_frontier_z);
+      frontier_marker.colors.push_back(color);
+      frontier_marker.points.push_back(frontier_pt);
+    }
+    frontier_costs_pub_.publish(frontier_marker);
+
     if (frontier_queue.size() <= goal_frontier_threshold_) {
       ROS_INFO("Less than %d frontiers. Return exploration finished.", goal_frontier_threshold_);
       return EXPL_FINISHED;
