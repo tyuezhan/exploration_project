@@ -8,6 +8,7 @@ typedef std::pair<double,unsigned int> Entry;
 
 FrontierPlanner::FrontierPlanner() {
   frontier_costs_pub_ = nh_.advertise<visualization_msgs::Marker>("frontier_cost", 5);
+  fov_frontier_pub_ = nh_.advertise<visualization_msgs::Marker>("fov_frontier", 5);
   penalize_factor_ = 10;
   obstacle_penalize_dis_ = 0.2;
   close_obstacle_penalize_factor_ = 50;
@@ -42,6 +43,21 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
   // Init priority queue for frontier
   Queue frontier_queue;
 
+  visualization_msgs::Marker fov_frontier_marker;
+  fov_frontier_marker.scale.x = .05;
+  fov_frontier_marker.scale.y = .05;
+  fov_frontier_marker.scale.z = .05;
+  fov_frontier_marker.color.a = 1;
+  fov_frontier_marker.color.r = 1;
+  fov_frontier_marker.pose.orientation.w = 1.0;
+  fov_frontier_marker.header.frame_id = std::string("ddk/odom");
+  fov_frontier_marker.header.stamp = ros::Time::now();
+  fov_frontier_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  std_msgs::ColorRGBA fov_frontier_color;
+  fov_frontier_color.a = 1;
+  
+  geometry_msgs::Point fov_frontier_pt;
+
   // Do full search with weightless Dijkstra-Algorithm
   while(!queue.empty())
   {
@@ -55,26 +71,35 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
     if(map->isFrontier(index)) {
       // We reached the border of the map, which is unexplored terrain as well:
       foundFrontier = true;
-      // Calculate two distance.
+      fov_frontier_color.r = 0;
+      fov_frontier_color.g = 0.5;
+      fov_frontier_color.b = 0;
+
+      // Calculate frontier fov
       unsigned int start_x = 0, start_y = 0, goal_x = 0, goal_y = 0;
       map->getCoordinates(start_x, start_y, start);
       map->getCoordinates(goal_x, goal_y, index);
-      // double goal_dis = euclidean((double)start_x, (double)start_y, (double)goal_x, (double)goal_y);
-      
+      double world_start_x = 0, world_start_y = 0, world_goal_x = 0, world_goal_y = 0;
+
+      getWorldCoordinate(map, start_x, start_y, world_start_x, world_start_y);
+      getWorldCoordinate(map, goal_x, goal_y, world_goal_x, world_goal_y);
       double fov_cost = 0;
-      float goal_yaw;
-      goal_yaw = atan2(goal_y, goal_x);
-      // goal_yaw = atan2(start_y - goal_y, start_x - goal_x);
-      // goal_yaw = goal_yaw + PI;
-      // ROS_INFO("Goal yaw is: %f, current yaw is: %f", goal_yaw, current_yaw);
-      double diff2 = std::abs(goal_yaw - current_yaw);
+      double goal_yaw = atan2(world_goal_y-world_start_y, world_goal_x-world_start_x);
+
       double diff = std::abs(angles::shortest_angular_distance(current_yaw, goal_yaw));
-      // ROS_INFO("diff2: %f, diff: %f", diff2, diff);
-      // if (diff > PI) diff = 2*PI - diff;
+      // ROS_INFO("start pos: %f, %f, goal pos: %f, %f, current_yaw: %f, goal_yaw: %f, diff: %f", world_start_x, world_start_y, world_goal_x, world_goal_y, current_yaw, goal_yaw, diff);
       if (diff > angles::from_degrees(fov_range_ / 2)) {
         fov_cost = fov_cost_;
+        fov_frontier_color.r = 1.0;
+        fov_frontier_color.g = 0;
         // ROS_INFO("penalize ouside fov");
       }
+      fov_frontier_pt.x = world_goal_x;
+      fov_frontier_pt.y = world_goal_y;
+      fov_frontier_pt.z = 0.5;
+      fov_frontier_marker.points.push_back(fov_frontier_pt);
+      fov_frontier_marker.colors.push_back(fov_frontier_color);
+
 
       // scan nearby obstacle
       Queue scan_quque;
@@ -136,7 +161,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       if (obstacle_dis < (obstacle_penalize_dis_ / resolution)) penalize_factor = close_obstacle_penalize_factor_;
       // double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
       double total_cost = (distance / resolution) + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
-      ROS_INFO("Total cost for curr frontier: %f, path cost: %f, obs cost: %f, fov_cost: %f", total_cost, (distance / resolution), (scan_cell_distance_ - obstacle_dis) * penalize_factor, fov_cost);
+      // ROS_INFO("Total cost for curr frontier: %f, path cost: %f, obs cost: %f, fov_cost: %f", total_cost, (distance / resolution), (scan_cell_distance_ - obstacle_dis) * penalize_factor, fov_cost);
       frontier_queue.insert(Entry(total_cost, index));
       delete[] frontier_plan;
     } else {
@@ -157,6 +182,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       }
     }
   }
+
+  fov_frontier_pub_.publish(fov_frontier_marker);
 
   ROS_DEBUG("Checked %d cells.", cellCount);	
   delete[] plan;
@@ -203,7 +230,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       frontier_pt.x = map_frontier_x;
       frontier_pt.y = map_frontier_y;
       frontier_pt.z = map_frontier_z;
-      ROS_INFO("frontier: x: %f, y: %f, z: %f", map_frontier_x, map_frontier_y, map_frontier_z);
+      // ROS_INFO("frontier: x: %f, y: %f, z: %f", map_frontier_x, map_frontier_y, map_frontier_z);
       frontier_marker.colors.push_back(color);
       frontier_marker.points.push_back(frontier_pt);
     }
@@ -273,6 +300,11 @@ void FrontierPlanner::setFrontierDistanceThreshold(double distance) {
 
 void FrontierPlanner::setFovRange(double fov){
   fov_range_ = fov;
+}
+
+void FrontierPlanner::getWorldCoordinate(GridMap* map, unsigned int cell_x, unsigned int cell_y, double &world_x, double &world_y) {
+  world_x = map->getOriginX() + (((double)cell_x + 0.5) * map->getResolution());
+  world_y = map->getOriginY() + (((double)cell_y + 0.5) * map->getResolution());
 }
 
 // int FrontierPlanner::findExplorationTarget(grid_map::GridMap* map, grid_map::Position start, grid_map::Position &goal) {

@@ -26,6 +26,7 @@ class FrontierPlanner {
     void setGoalFrontierThreshold(int threshold);
     void setFrontierDistanceThreshold(double distance);
     void setFovRange(double fov);
+    void getWorldCoordinate(GridMap* map, unsigned int cell_x, unsigned int cell_y, double &world_x, double &world_y);
     // int findExplorationTarget(grid_map::GridMap* map, grid_map::Position start, grid_map::Position &goal);
     
   private:
@@ -41,7 +42,7 @@ class FrontierPlanner {
     double fov_cost_ = 1000;
 
     ros::NodeHandle nh_;
-    ros::Publisher frontier_costs_pub_;
+    ros::Publisher frontier_costs_pub_, fov_frontier_pub_;
 
 };
 

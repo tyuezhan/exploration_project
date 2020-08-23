@@ -453,7 +453,7 @@ void Nav2D::lineTrackerDoneCB(const actionlib::SimpleClientGoalState &state, con
 void Nav2D::trackPathDoneCB(
     const actionlib::SimpleClientGoalState &state,
     const kr_replanning_msgs::TrackPathResultConstPtr &result) {
-  ROS_WARN("Track Path done. results: %d, %s", result->result, result->error_msg);
+  // ROS_WARN("Track Path done. results: %d, %s", result->result, result->error_msg);
   track_path_status_ = NAV_ST_IDLE;
 }
 
