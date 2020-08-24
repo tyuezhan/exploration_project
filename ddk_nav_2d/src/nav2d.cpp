@@ -25,6 +25,7 @@ Nav2D::Nav2D() {
   pnh_.param<int>("goal_frontier_num_threshold", goal_frontier_threshold_, 30);
   pnh_.param<double>("frontier_distance_threshold", frontier_distance_threshold_, 0.5);
   pnh_.param<double>("frontier_fov", frontier_fov_, 90.0);
+  pnh_.param<bool>("first_360_scan", first_scan_, true);
 
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
@@ -177,16 +178,18 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
   }
 
   // Turn 360, get first map
-  float rotation = 0;
-  while (true) {
-    if (rotation >= 6.282 && line_tracker_status_ == NAV_ST_IDLE)
-      break;
-    if (line_tracker_status_ == NAV_ST_IDLE) {
-      goTo(0, 0, 0, 3.141, 0.0f, 0.0f, true);
-      rotation += 3.141;
+  if (first_scan_){
+    float rotation = 0;
+    while (true) {
+      if (rotation >= 6.282 && line_tracker_status_ == NAV_ST_IDLE)
+        break;
+      if (line_tracker_status_ == NAV_ST_IDLE) {
+        goTo(0, 0, 0, 3.141, 0.0f, 0.0f, true);
+        rotation += 3.141;
+      }
+      ros::spinOnce();
+      loop_rate.sleep();
     }
-    ros::spinOnce();
-    loop_rate.sleep();
   }
 
 

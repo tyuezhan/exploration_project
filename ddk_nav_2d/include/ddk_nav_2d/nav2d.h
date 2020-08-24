@@ -113,6 +113,7 @@ private:
   bool inflated_map_inflated_;
   float flight_height_;
   double frontier_fov_;
+  bool first_scan_;
 
   // TF param
   tf2_ros::Buffer tfBuffer_;
