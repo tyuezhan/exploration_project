@@ -154,8 +154,8 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
   unsigned int cycle = 0;
   unsigned int last_check = 0;
   bool recheck;
-  unsigned int recheck_cycles = min_recheck_period_ * frequency_;
-  // unsigned int recheck_cycles;
+  // unsigned int recheck_cycles = min_recheck_period_ * frequency_;
+  ros::Time last_frontier_time = ros::Time::now(); 
   float last_goal_x, last_goal_y;
 
   // set to change use traj tracker / TrackPath.
@@ -216,10 +216,20 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     }
 
     // recheck for exploration target
+    // if (goal_recheck_) {
+    //   recheck = last_check == 0 ||(recheck_cycles && (cycle - last_check > recheck_cycles));
+    // } else {
+    //   recheck = goal_recheck_;
+    // }
     if (goal_recheck_) {
-      recheck = last_check == 0 ||(recheck_cycles && (cycle - last_check > recheck_cycles));
+      ros::Time current_time = ros::Time::now();
+      if ((current_time.toSec() - last_frontier_time.toSec()) > min_recheck_period_) {
+        recheck = true;
+      } else {
+        recheck = false;
+      }
     } else {
-      recheck = goal_recheck_;
+      recheck = false;
     }
 
     // Not moving(reached goal) or recheck, need to find new frontiers.
@@ -231,6 +241,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
 
         case EXPL_TARGET_SET:
           ROS_INFO("EXPL TARGET SET");
+          last_frontier_time = ros::Time::now();
           if (recheck || !moving) {
             unsigned int goal_x = 0, goal_y = 0;
             if (inflated_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
@@ -239,7 +250,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               float map_goal_z = flight_height_;
 
               if (recheck && moving){
-              last_check = cycle;
+              // last_check = cycle;
               ROS_INFO("Enter recheck exploration goal point.");
                 if (std::abs(last_goal_x - map_goal_x) > 0.1 || std::abs(last_goal_y - map_goal_y) > 0.1){
                   // should cancel current move
@@ -283,9 +294,10 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
                                 std::pow(map_goal_y - pos_(1), 2) +
                                 std::pow(map_goal_z - pos_(2), 2));
               ROS_INFO("Distance to goal: %f", distance);
+
               // TODO: check the hardcode according to spin speed and speed
-              if (distance > 3) recheck_cycles = (3 * 5 + 5) * frequency_;
-              recheck_cycles = (distance * 5 + 5) * frequency_;
+              // if (distance > 3) recheck_cycles = (3 * 5 + 5) * frequency_;
+              // recheck_cycles = (distance * 5 + 5) * frequency_;
 
               // Gen arguments needed for getJpsTraj function.
               double local_time = 0.0;
