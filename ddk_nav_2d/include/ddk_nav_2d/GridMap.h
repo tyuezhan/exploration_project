@@ -7,9 +7,11 @@
 class GridMap
 {
 public:
-  void update(nav_msgs::OccupancyGrid grid)
+  GridMap() {};
+
+  void update(const nav_msgs::OccupancyGrid::ConstPtr &grid)
   {
-    mOccupancyGrid = grid;
+    mOccupancyGrid = *grid;
     mMapWidth = mOccupancyGrid.info.width;
     mMapHeight = mOccupancyGrid.info.height;
     ROS_DEBUG("Got new map of size %d x %d", mMapWidth, mMapHeight);

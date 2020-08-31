@@ -70,10 +70,11 @@ Nav2D::Nav2D() {
   line_tracker_min_jerk_ = "kr_trackers/LineTrackerMinJerk";
   traj_tracker_ = "kr_trackers/TrajectoryTracker";
 
-  frontier_planner_.setObstacleScanRange(obstacle_scan_range_);
-  frontier_planner_.setGoalFrontierThreshold(goal_frontier_threshold_);
-  frontier_planner_.setFrontierDistanceThreshold(frontier_distance_threshold_);
-  frontier_planner_.setFovRange(frontier_fov_);
+  frontier_planner_ptr_.reset(new FrontierPlanner(map_frame_));
+  frontier_planner_ptr_->setObstacleScanRange(obstacle_scan_range_);
+  frontier_planner_ptr_->setGoalFrontierThreshold(goal_frontier_threshold_);
+  frontier_planner_ptr_->setFrontierDistanceThreshold(frontier_distance_threshold_);
+  frontier_planner_ptr_->setFovRange(frontier_fov_);
 
   // Action server
   explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));
@@ -88,8 +89,8 @@ Nav2D::~Nav2D() {
 
 void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
   boost::mutex::scoped_lock lock(map_mutex_);
-  current_map_.update(*map);
-  inflated_map_.update(*map);
+  current_map_.update(map);
+  inflated_map_.update(map);
   if (map_updated_ == false) {
     ROS_INFO("Navigator is now initialized.");
     cell_map_inflation_radius_ = map_inflation_radius_ / current_map_.getResolution();
@@ -236,7 +237,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     if (!moving || recheck){
       boost::mutex::scoped_lock lock(map_mutex_);
       if (preparePlan()) {
-        int result = frontier_planner_.findExplorationTarget(&inflated_map_, yaw_, start_point_, goal_point_);
+        int result = frontier_planner_ptr_->findExplorationTarget(&inflated_map_, yaw_, start_point_, goal_point_);
         switch (result) {
 
         case EXPL_TARGET_SET:

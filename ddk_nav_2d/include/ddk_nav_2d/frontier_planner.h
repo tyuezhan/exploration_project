@@ -18,7 +18,7 @@
 
 class FrontierPlanner {
   public:
-    FrontierPlanner();
+    FrontierPlanner(std::string map_frame);
     ~FrontierPlanner();
     
     int findExplorationTarget(GridMap* map, double current_yaw, unsigned int start, unsigned int &goal);
@@ -40,6 +40,8 @@ class FrontierPlanner {
     double obstacle_penalize_dis_ = 0.2;
     double close_obstacle_penalize_factor_ = 50;
     double fov_cost_ = 1000;
+
+    std::string map_frame_;
 
     ros::NodeHandle nh_;
     ros::Publisher frontier_costs_pub_, fov_frontier_pub_;

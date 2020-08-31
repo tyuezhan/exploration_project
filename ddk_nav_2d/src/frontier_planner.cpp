@@ -6,7 +6,8 @@
 typedef std::multimap<double,unsigned int> Queue;
 typedef std::pair<double,unsigned int> Entry;
 
-FrontierPlanner::FrontierPlanner() {
+FrontierPlanner::FrontierPlanner(std::string map_frame) {
+  map_frame_ = map_frame;
   frontier_costs_pub_ = nh_.advertise<visualization_msgs::Marker>("frontier_cost", 5);
   fov_frontier_pub_ = nh_.advertise<visualization_msgs::Marker>("fov_frontier", 5);
   penalize_factor_ = 10;

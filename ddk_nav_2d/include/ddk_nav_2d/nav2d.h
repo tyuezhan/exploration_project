@@ -122,7 +122,6 @@ private:
   std::string robot_frame_;
 
   // 2D frontier exploration related param
-  FrontierPlanner frontier_planner_;
   bool goal_recheck_;
   double obstacle_scan_range_;
   int goal_frontier_threshold_;
@@ -149,6 +148,7 @@ private:
   std::unique_ptr<LineClientType> line_tracker_min_jerk_client_ptr_;
   std::unique_ptr<TrajectoryClientType> traj_tracker_client_ptr_;
   std::unique_ptr<TrackPathClientType> track_path_action_client_ptr_;
+  std::unique_ptr<FrontierPlanner> frontier_planner_ptr_;
 
   double server_wait_timeout_;
 
