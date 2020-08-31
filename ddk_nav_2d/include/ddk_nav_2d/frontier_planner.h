@@ -32,7 +32,7 @@ class FrontierPlanner {
   private:
     double euclidean(double x1, double y1, double x2, double y2);
     double scan_distance_ = 0.8;
-    double scan_cell_distance_;
+    // double scan_cell_distance_;
     int goal_frontier_threshold_ = 30;
     double frontier_distance_threshold_ = 0.5;
     double fov_range_ = 120;

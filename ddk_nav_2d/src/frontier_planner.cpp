@@ -3,17 +3,18 @@
 
 #define PI 3.14159265
 
-typedef std::multimap<double,unsigned int> Queue;
-typedef std::pair<double,unsigned int> Entry;
+typedef std::pair<double,unsigned int> Entry; // Euclidean + index
+typedef std::multimap<double, Entry> Queue;
+// typedef std::multimap<double, unsigned int> ScanQueue;
 
 FrontierPlanner::FrontierPlanner(std::string map_frame) {
   map_frame_ = map_frame;
   frontier_costs_pub_ = nh_.advertise<visualization_msgs::Marker>("frontier_cost", 5);
   fov_frontier_pub_ = nh_.advertise<visualization_msgs::Marker>("fov_frontier", 5);
-  penalize_factor_ = 10;
+  penalize_factor_ = 2;
   obstacle_penalize_dis_ = 0.2;
-  close_obstacle_penalize_factor_ = 50;
-  fov_cost_ = 1000;
+  close_obstacle_penalize_factor_ = 8;
+  fov_cost_ = 15;
 }
 
 FrontierPlanner::~FrontierPlanner() {}
@@ -31,7 +32,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
   // Initialize the queue with the robot position
   Queue queue;
   Entry startPoint(0.0, start);
-  queue.insert(startPoint);
+  queue.insert(std::make_pair(0.0, startPoint));
   plan[start] = 0;
   
   Queue::iterator next;
@@ -66,7 +67,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
     // Get the nearest cell from the queue
     next = queue.begin();
     distance = next->first;
-    unsigned int index = next->second;
+    double euclidean_path_distance = std::get<0>(next->second);
+    unsigned int index = std::get<1>(next->second);
     queue.erase(next);
     
     if(map->isFrontier(index)) {
@@ -104,9 +106,9 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
 
       // scan nearby obstacle
       Queue scan_quque;
-      scan_cell_distance_ = scan_distance_ / resolution; 
+      // scan_cell_distance_ = scan_distance_ / resolution;
       Entry frontier_cell(0.0, index);
-      scan_quque.insert(frontier_cell);
+      scan_quque.insert(std::make_pair(0.0, frontier_cell));
       mapSize = map->getSize();
       double* frontier_plan = new double[mapSize];
       for(unsigned int i = 0; i < mapSize; i++)
@@ -121,7 +123,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       while(!scan_quque.empty()){
         scan_next = scan_quque.begin();
         distance_to_frontier = scan_next->first;
-        unsigned int curr_index = scan_next->second;
+        // double euclidean_distance_to_frontier = std::get<0>(scan_next->second);
+        unsigned int curr_index = std::get<1>(scan_next->second);
         scan_quque.erase(scan_next);
         if (!map->isObstacle(curr_index)){
           unsigned int neighbor[4];
@@ -136,9 +139,12 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
               // check if within scan distance
               unsigned int check_x, check_y;
               if(map->getCoordinates(check_x, check_y, i)) {
-                double check_dis = euclidean((double)check_x, (double)check_y, (double)goal_x, (double)goal_y);
-                if (check_dis <= scan_cell_distance_) {
-                  scan_quque.insert(Entry(distance_to_frontier+resolution, i));
+                double world_check_x = 0, world_check_y = 0;
+                getWorldCoordinate(map, check_x, check_y, world_check_x, world_check_y);
+                double check_dis = euclidean(world_check_x, world_check_y, world_goal_x, world_goal_y);
+                // double check_dis = euclidean((double)check_x, (double)check_y, (double)goal_x, (double)goal_y);
+                if (check_dis <= scan_distance_) {
+                  scan_quque.insert(std::make_pair(distance_to_frontier+resolution, Entry(check_dis, i)));
                   frontier_plan[i] = distance_to_frontier+resolution;
                 }
               }
@@ -148,23 +154,30 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
           // found obstacle
           found_obstacle = true;
           unsigned int obs_x, obs_y;
+          double world_obs_x = 0, world_obs_y = 0;
           map->getCoordinates(obs_x, obs_y, curr_index);
-          obstacle_dis = euclidean((double)obs_x, (double)obs_y, (double)goal_x, (double)goal_y);
+          getWorldCoordinate(map, obs_x, obs_y, world_obs_x, world_obs_y);
+          obstacle_dis = euclidean(world_obs_x, world_obs_y, world_goal_x, world_goal_y);
+          // obstacle_dis = euclidean((double)obs_x, (double)obs_y, (double)goal_x, (double)goal_y);
           break;
         }
       }
       if (!found_obstacle){
         // ROS_INFO("dont find a obstacle for this frontier");
-        obstacle_dis = scan_cell_distance_;
+        // obstacle_dis = scan_cell_distance_;
+        obstacle_dis = scan_distance_;
       }
       // calculate total cost and put frontier into priority queue
       double penalize_factor = penalize_factor_;
-      if (obstacle_dis < (obstacle_penalize_dis_ / resolution)) penalize_factor = close_obstacle_penalize_factor_;
+      if (obstacle_dis < obstacle_penalize_dis_) penalize_factor = close_obstacle_penalize_factor_;
+      double total_cost = distance/std::sqrt(2) + (scan_distance_ - obstacle_dis) * penalize_factor + fov_cost;
+      // if (obstacle_dis < (obstacle_penalize_dis_ / resolution)) penalize_factor = close_obstacle_penalize_factor_;
       // double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
-      double total_cost = (distance / resolution) + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
-      // ROS_INFO("Total cost for curr frontier: %f, path cost: %f, obs cost: %f, fov_cost: %f", total_cost, (distance / resolution), (scan_cell_distance_ - obstacle_dis) * penalize_factor, fov_cost);
-      frontier_queue.insert(Entry(total_cost, index));
+      // double total_cost = (distance / resolution) + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
+      ROS_INFO("Total cost for curr frontier: %f, path cost(man): %f, path_cost: %f, obs cost: %f, fov_cost: %f", total_cost, distance/std::sqrt(2), euclidean_path_distance, (scan_distance_ - obstacle_dis) * penalize_factor, fov_cost);
+      frontier_queue.insert(std::make_pair(total_cost, Entry(euclidean_path_distance, index)));
       delete[] frontier_plan;
+
     } else {
       unsigned int ind[4];
 
@@ -177,7 +190,17 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
         unsigned int i = ind[it];
 
         if(map->isFree(i) && plan[i] == -1) {
-          queue.insert(Entry(distance+resolution, i));
+          // calculate euclidean distance
+          // unsigned int neighbor_x = 0, neighbor_y = 0, start_x = 0, start_y = 0;
+          // double world_start_x = 0, world_start_y = 0;
+          // map->getCoordinates(start_x, start_y, start);
+          // getWorldCoordinate(map, start_x, start_y, world_start_x, world_start_y);
+          // double world_neighbor_x = 0, world_neighbor_y = 0;
+          // map->getCoordinates(neighbor_x, neighbor_y, i);
+          // getWorldCoordinate(map, neighbor_x, neighbor_y, world_neighbor_x, world_neighbor_y);
+          // double neighbor_dis = euclidean(world_neighbor_x, world_neighbor_y, world_start_x, world_start_y);
+          // queue.insert(std::make_pair(distance+resolution, Entry(neighbor_dis, i)));
+          queue.insert(std::make_pair(distance+resolution, Entry(0, i)));
           plan[i] = distance+resolution;
         }
       }
@@ -207,7 +230,8 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
 
     for (Queue::iterator it=frontier_queue.begin(); it != frontier_queue.end(); it++) {
       double frontier_cost = it->first;
-      double frontier_ind = it->second;
+      // double frontier_euclidean_distance = std::get<0>(it->second);
+      unsigned int frontier_ind = std::get<1>(it->second);
       unsigned int frontier_x = 0, frontier_y = 0;
       map->getCoordinates(frontier_x, frontier_y, frontier_ind);
       if (frontier_cost < fov_cost_/2){
@@ -244,14 +268,19 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       for (Queue::iterator it = frontier_queue.begin(); it != frontier_queue.end(); it++){
         unsigned int check_start_x = 0, check_start_y = 0, check_goal_x = 0, check_goal_y = 0;
         map->getCoordinates(check_start_x, check_start_y, start);
-        map->getCoordinates(check_goal_x, check_goal_y, it->second);
+        map->getCoordinates(check_goal_x, check_goal_y, std::get<1>(it->second));
         double check_goal_dis = euclidean((double)check_start_x, (double)check_start_y, (double)check_goal_x, (double)check_goal_y);
         if (check_goal_dis > (frontier_distance_threshold_ / resolution)) {
           double frontier_dis = it->first;
-          goal = it->second;
+          goal = std::get<1>(it->second);
           ROS_INFO("found %d fontiers, current frontier cost: %f", frontier_queue.size(), frontier_dis);
           return EXPL_TARGET_SET;
         }
+        // double frontier_euclidean_distance = std::get<0>(it->second);
+        // if (frontier_euclidean_distance > frontier_distance_threshold_) {
+        //   goal = std::get<1>(it->second);
+        //   return EXPL_TARGET_SET;
+        // }
         if (it == frontier_queue.end()) {
           ROS_ERROR("No frontier out of %f meters", frontier_distance_threshold_);
           return EXPL_FAILED;
