@@ -51,7 +51,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
   fov_frontier_marker.color.a = 1;
   fov_frontier_marker.color.r = 1;
   fov_frontier_marker.pose.orientation.w = 1.0;
-  fov_frontier_marker.header.frame_id = std::string("ddk/odom");
+  fov_frontier_marker.header.frame_id = map_frame_;
   fov_frontier_marker.header.stamp = ros::Time::now();
   fov_frontier_marker.type = visualization_msgs::Marker::SPHERE_LIST;
   std_msgs::ColorRGBA fov_frontier_color;
@@ -198,7 +198,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
     frontier_marker.color.a = 1;
     frontier_marker.color.r = 1;
     frontier_marker.pose.orientation.w = 1.0;
-    frontier_marker.header.frame_id = std::string("ddk/odom");
+    frontier_marker.header.frame_id = map_frame_;
     frontier_marker.header.stamp = ros::Time::now();
     frontier_marker.type = visualization_msgs::Marker::SPHERE_LIST;
     std_msgs::ColorRGBA color;
