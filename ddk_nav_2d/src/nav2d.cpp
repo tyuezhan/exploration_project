@@ -156,7 +156,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
   unsigned int last_check = 0;
   bool recheck;
   // unsigned int recheck_cycles = min_recheck_period_ * frequency_;
-  ros::Time last_frontier_time = ros::Time::now(); 
+  ros::Time last_frontier_time = ros::Time::now();
   float last_goal_x, last_goal_y;
 
   // set to change use traj tracker / TrackPath.
@@ -307,7 +307,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               geometry_msgs::TransformStamped transformStamped;
               try {
                 transformStamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));
-              } 
+              }
               catch (tf2::TransformException &ex) {
                 ROS_INFO("Couldn't get current odom transform");
                 ROS_WARN("%s", ex.what());
@@ -320,7 +320,7 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               // Check what is the expected goal yaw.
               double goal_yaw = getGoalHeading(goal_point_);
               if (goal_yaw < 0) ROS_ERROR("Goal heading -1.");
-            
+
               tf2::Quaternion tf2_quaternion;
               tf2_quaternion.setRPY(0, 0, goal_yaw);
               geometry_msgs::Quaternion goal_quaternion = tf2::toMsg(tf2_quaternion);
@@ -496,7 +496,7 @@ bool Nav2D::getMapIndex() {
   geometry_msgs::TransformStamped transform_stamped;
   try {
     transform_stamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));
-  } 
+  }
   catch (tf2::TransformException &ex) {
     ROS_INFO("Couldn't get robot position");
     ROS_WARN("%s", ex.what());

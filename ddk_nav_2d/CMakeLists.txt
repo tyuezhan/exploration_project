@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ddk_nav_2d)
 
-add_definitions(-std=c++11 -g -O3 -ftree-vectorize -march=native)
+#add_definitions(-std=c++11 -g -O3 -ftree-vectorize -march=native)
+
+add_definitions(-std=c++11)
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
@@ -10,14 +12,12 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_eigen
   tf2_geometry_msgs
-  pluginlib
   actionlib
   actionlib_msgs
   geometry_msgs
   std_msgs
   kr_mav_msgs
   kr_tracker_msgs
-  eigen_conversions
   visualization_msgs
   kr_replanning_msgs
 )
@@ -72,28 +72,24 @@ catkin_package(
 include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-link_directories(${PCL_LIBRARY_DIRS})
-
 ## Declare a cpp library
 add_library(MapInflationTool src/MapInflationTool.cpp)
-add_library(nav2d src/nav2d.cpp)
 add_library(frontier_planner src/frontier_planner.cpp)
+add_library(nav2d src/nav2d.cpp)
 
 ## Declare a cpp executable
-add_executable(navigator src/navigator.cpp)
 add_executable(explore_client src/explore_client.cpp)
+add_executable(navigator src/navigator.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(navigator ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(explore_client ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(nav2d ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-add_dependencies(frontier_planner ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(explore_client ${catkin_LIBRARIES})
-target_link_libraries(nav2d MapInflationTool frontier_planner ${catkin_LIBRARIES})
-target_link_libraries(navigator nav2d)
+#target_link_libraries(nav2d MapInflationTool frontier_planner ${catkin_LIBRARIES})
+target_link_libraries(navigator nav2d MapInflationTool frontier_planner ${catkin_LIBRARIES})
 
 #############
 ## Install ##

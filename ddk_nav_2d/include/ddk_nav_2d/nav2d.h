@@ -1,3 +1,6 @@
+#ifndef NAV2D_EXP_H_
+#define NAV2D_EXP_H_
+
 #include <ros/ros.h>
 #include <std_srvs/Trigger.h>
 
@@ -155,3 +158,5 @@ private:
 
   boost::mutex map_mutex_;
 };
+
+#endif
