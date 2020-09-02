@@ -15,7 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
   geometry_msgs
   std_msgs
-  nav2d_navigator
   kr_mav_msgs
   kr_tracker_msgs
   eigen_conversions
@@ -24,8 +23,6 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Eigen3 REQUIRED)
-find_package(octomap REQUIRED)
-
 
 
 ################################################
@@ -51,7 +48,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES RobotNavigator MapInflationTool
+  LIBRARIES MapInflationTool
   CATKIN_DEPENDS
     roscpp
     message_runtime
@@ -61,8 +58,9 @@ catkin_package(
     actionlib
     actionlib_msgs
     geometry_msgs
-    nav2d_navigator
     kr_mav_msgs
+    kr_tracker_msgs
+    kr_replanning_msgs
 )
 
 ###########

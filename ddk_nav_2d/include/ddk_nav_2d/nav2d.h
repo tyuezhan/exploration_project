@@ -20,9 +20,6 @@
 
 #include <kr_replanning_msgs/TrackPathAction.h>
 
-#include <octomap/octomap.h>
-#include <octomap_msgs/Octomap.h>
-
 #include <kr_tracker_msgs/LineTrackerAction.h>
 #include <kr_tracker_msgs/TrajectoryTrackerAction.h>
 #include <kr_tracker_msgs/Transition.h>
@@ -58,11 +55,11 @@ public:
   // Moving the robot: goTo for line tracker min jerk. trackPath for traj tracker/TrackPath action
   bool goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative);
     //method == True will use trackPath action. False will use TrajectoryTracker
-  bool trackPath(nav_msgs::Path planned_path, bool method);   
+  bool trackPath(nav_msgs::Path planned_path, bool method);
 
   // Tracker transition
   bool transition(const std::string &tracker_str);
-  
+
   // action client done callback
   void lineTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result);
   void trajTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::TrajectoryTrackerResultConstPtr &result);
