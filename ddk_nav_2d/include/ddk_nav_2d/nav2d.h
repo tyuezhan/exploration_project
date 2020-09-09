@@ -2,7 +2,6 @@
 #define NAV2D_EXP_H_
 
 #include <ros/ros.h>
-#include <std_srvs/Trigger.h>
 
 #include <tf2_ros/transform_listener.h>
 #include <tf2_eigen/tf2_eigen.h>
@@ -18,6 +17,7 @@
 #include <nav_msgs/GetPlan.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -27,14 +27,14 @@
 #include <kr_tracker_msgs/TrajectoryTrackerAction.h>
 #include <kr_tracker_msgs/Transition.h>
 
-#include <ddk_nav_2d/GridMap.h>
+#include <ddk_nav_2d/map_inflation_tool.h>
+#include <ddk_nav_2d/grid_map.h>
+#include <ddk_nav_2d/frontier_planner.h>
 #include <ddk_nav_2d/commands.h>
-#include <ddk_nav_2d/MapInflationTool.h>
+
 #include <ddk_nav_2d/ExploreAction.h>
 
-// #include <grid_map_ros/grid_map_ros.hpp>
 
-#include <ddk_nav_2d/frontier_planner.h>
 
 class Nav2D {
 

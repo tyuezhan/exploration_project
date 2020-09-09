@@ -4,7 +4,7 @@
 #include <queue>
 
 #include <ros/ros.h>
-#include <ddk_nav_2d/GridMap.h>
+#include <ddk_nav_2d/grid_map.h>
 
 class CellData
 {

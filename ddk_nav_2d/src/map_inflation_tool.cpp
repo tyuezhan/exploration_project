@@ -1,4 +1,4 @@
-#include <ddk_nav_2d/MapInflationTool.h>
+#include <ddk_nav_2d/map_inflation_tool.h>
 
 CellData::CellData(double d, double i, unsigned int sx, unsigned int sy):distance(d), index(i), sx(sx), sy(sy){
 }

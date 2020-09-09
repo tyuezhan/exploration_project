@@ -56,8 +56,6 @@ Nav2D::Nav2D() {
 
   // tf listener
   tf_listener_ptr_.reset(new tf2_ros::TransformListener(tfBuffer_));
-  // robot_frame_ = tf_listener_.resolve(robot_frame_);
-  // map_frame_ = tf_listener_.resolve(map_frame_);
 
   // Init Params
   map_updated_ = false;
@@ -108,12 +106,6 @@ void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
     inflated_map_inflated_ = true;
     inflated_map_publisher_.publish(inflated_map_.getMap());
   }
-  // Try grid map
-  // bool status = grid_map::GridMapRosConverter::fromOccupancyGrid(*map, "test", map_test_);
-  // grid_map::Position start(0.0, 0.0);
-  // grid_map::Position goal(0.0, 0.0);
-  // frontier_planner_.findExplorationTarget(&map_test_, start, goal);
-  // if (status) ROS_INFO("Gridmap connected");
 }
 
 
@@ -217,11 +209,15 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     }
 
     // recheck for exploration target
+
+    // Recheck acoording to distance
     // if (goal_recheck_) {
     //   recheck = last_check == 0 ||(recheck_cycles && (cycle - last_check > recheck_cycles));
     // } else {
     //   recheck = goal_recheck_;
     // }
+
+    // Recheck acoording to time
     if (goal_recheck_) {
       ros::Time current_time = ros::Time::now();
       if ((current_time.toSec() - last_frontier_time.toSec()) > min_recheck_period_) {
@@ -296,14 +292,13 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
                                 std::pow(map_goal_z - pos_(2), 2));
               ROS_INFO("Distance to goal: %f", distance);
 
-              // TODO: check the hardcode according to spin speed and speed
+              // Recheck acoording to distance
               // if (distance > 3) recheck_cycles = (3 * 5 + 5) * frequency_;
               // recheck_cycles = (distance * 5 + 5) * frequency_;
 
               // Gen arguments needed for getJpsTraj function.
               double local_time = 0.0;
               // get current odom transform
-
               geometry_msgs::TransformStamped transformStamped;
               try {
                 transformStamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));

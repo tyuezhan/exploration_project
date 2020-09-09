@@ -2,8 +2,7 @@
 #ifndef FRONTIERPLANNER_H_
 #define FRONTIERPLANNER_H_
 
-// #include <grid_map_ros/grid_map_ros.hpp>
-#include <ddk_nav_2d/GridMap.h>
+#include <ddk_nav_2d/grid_map.h>
 #include <angles/angles.h>
 #include <std_msgs/ColorRGBA.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -27,7 +26,6 @@ class FrontierPlanner {
     void setFrontierDistanceThreshold(double distance);
     void setFovRange(double fov);
     void getWorldCoordinate(GridMap* map, unsigned int cell_x, unsigned int cell_y, double &world_x, double &world_y);
-    // int findExplorationTarget(grid_map::GridMap* map, grid_map::Position start, grid_map::Position &goal);
     
   private:
     double euclidean(double x1, double y1, double x2, double y2);

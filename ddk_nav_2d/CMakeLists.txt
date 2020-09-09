@@ -73,7 +73,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 ## Declare a cpp library
-add_library(MapInflationTool src/MapInflationTool.cpp)
+add_library(map_inflation_tool src/map_inflation_tool.cpp)
 add_library(frontier_planner src/frontier_planner.cpp)
 add_library(nav2d src/nav2d.cpp)
 
@@ -88,8 +88,8 @@ add_dependencies(nav2d ddk_nav_2d_generate_messages_cpp ${catkin_EXPORTED_TARGET
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(explore_client ${catkin_LIBRARIES})
-#target_link_libraries(nav2d MapInflationTool frontier_planner ${catkin_LIBRARIES})
-target_link_libraries(navigator nav2d MapInflationTool frontier_planner ${catkin_LIBRARIES})
+#target_link_libraries(nav2d map_inflation_tool frontier_planner ${catkin_LIBRARIES})
+target_link_libraries(navigator nav2d map_inflation_tool frontier_planner ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -104,7 +104,7 @@ install(
     navigator
     explore_client
     nav2d
-    MapInflationTool
+    map_inflation_tool
     frontier_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
