@@ -18,12 +18,15 @@
     </node>
 
     <arg name="vehicle_description" default="$(find mrsl_quadrotor_description)/urdf/dragon_ddk/dragon_ddk.gazebo.xacro"/>
-    <node name="vehicle_state_publisher" pkg="robot_state_publisher" type="state_publisher">
+    <node name="vehicle_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
       <param name="robot_description" command="xacro '$(arg vehicle_description)' "/>
       <param name="publish_frequency" value="10"/>
       <param name="use_tf_static" value="false"/>
       <param name="tf_prefix" value="$(arg mav_name)"/>
     </node>
+
+    <!-- connect base_link to $(arg mav_name)/base_link TODO use tf_prefix correctly-->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_dummy" args="0 0 0 0 0 0 1 $(arg mav_name)/base_link base_link"/>
 
   </group>
 </launch>
