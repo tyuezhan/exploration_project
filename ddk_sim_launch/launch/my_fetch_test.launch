@@ -1,35 +1,35 @@
 <launch>
 
-	<!-- Some general parameters -->
-	<param name="use_sim_time" value="true" />
-	<rosparam file="$(find ddk_sim_launch)/param/my_fetch_nav.yaml"/>
+  <!-- Some general parameters -->
+  <param name="use_sim_time" value="true" />
+  <rosparam file="$(find ddk_sim_launch)/param/my_fetch_nav.yaml"/>
 
     <!-- Start the Operator to control the simulated robot -->
-	<node name="Operator" pkg="nav2d_operator" type="operator" >
-		<remap from="scan" to="base_scan"/>
-		<rosparam file="$(find ddk_sim_launch)/param/operator.yaml"/>
-		<rosparam file="$(find ddk_sim_launch)/param/costmap.yaml" ns="local_map" />
-	</node>
+  <node name="Operator" pkg="nav2d_operator" type="operator" >
+    <remap from="scan" to="base_scan"/>
+    <rosparam file="$(find ddk_sim_launch)/param/operator.yaml"/>
+    <rosparam file="$(find ddk_sim_launch)/param/costmap.yaml" ns="local_map" />
+  </node>
 
     <!-- slam -->
     <node pkg="slam_karto" type="slam_karto" name="slam_karto" output="screen">
         <remap from="scan" to="base_scan" />
     </node>
 
-	<!-- Start the Navigator to move the robot autonomously -->
-	<node name="Navigator" pkg="nav2d_navigator" type="navigator">
-		<rosparam file="$(find ddk_sim_launch)/param/navigator.yaml"/>
-	</node>
+  <!-- Start the Navigator to move the robot autonomously -->
+  <node name="Navigator" pkg="nav2d_navigator" type="navigator">
+    <rosparam file="$(find ddk_sim_launch)/param/navigator.yaml"/>
+  </node>
 
-	<node name="GetMap" pkg="nav2d_navigator" type="get_map_client" />
-	<node name="Explore" pkg="nav2d_navigator" type="explore_client" />
-	<node name="SetGoal" pkg="nav2d_navigator" type="set_goal_client" />
+  <node name="GetMap" pkg="nav2d_navigator" type="get_map_client" />
+  <node name="Explore" pkg="nav2d_navigator" type="explore_client" />
+  <node name="SetGoal" pkg="nav2d_navigator" type="set_goal_client" />
 
-	<!-- Start the joystick-driver and remote-controller for operation -->
-	<node name="Joystick" pkg="joy" type="joy_node" />
-	<node name="Remote" pkg="nav2d_remote" type="remote_joy" />
+  <!-- Start the joystick-driver and remote-controller for operation -->
+  <node name="Joystick" pkg="joy" type="joy_node" />
+  <node name="Remote" pkg="nav2d_remote" type="remote_joy" />
 
-	<!-- RVIZ to view the visualization -->
-	<node name="RVIZ" pkg="rviz" type="rviz" args=" -d $(find ddk_sim_launch)/param/my_fetch_nav.rviz" />
+  <!-- RVIZ to view the visualization -->
+  <node name="RVIZ" pkg="rviz" type="rviz" args=" -d $(find ddk_sim_launch)/param/my_fetch_nav.rviz" />
 
 </launch>

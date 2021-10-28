@@ -1,127 +1,162 @@
+#ifndef NAV2D_EXP_H_
+#define NAV2D_EXP_H_
+
 #include <ros/ros.h>
-#include <std_srvs/Trigger.h>
-#include <actionlib/server/simple_action_server.h>
+
+#include <tf2_ros/transform_listener.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <actionlib/client/simple_action_client.h>
-#include <pluginlib/class_loader.h>
-#include <tf/transform_listener.h>
-#include <nav_msgs/Odometry.h>
+#include <actionlib/server/simple_action_server.h>
 
-#include <ddk_nav_2d/GridMap.h>
-#include <ddk_nav_2d/commands.h>
-#include <ddk_nav_2d/GetFirstMapAction.h>
-#include <ddk_nav_2d/MapInflationTool.h>
-
+#include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <Eigen/StdVector>
 
-// include action
-#include <ddk_nav_2d/ExploreAction.h>
-#include <ddk_nav_2d/GetFirstMapAction.h>
+#include <nav_msgs/GetPlan.h>
+#include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 
-// TODO: Delete unnecessary part in Exploration planner
-#include <ddk_nav_2d/ExplorationPlanner.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+
+#include <kr_replanning_msgs/TrackPathAction.h>
 
 #include <kr_tracker_msgs/LineTrackerAction.h>
+#include <kr_tracker_msgs/TrajectoryTrackerAction.h>
 #include <kr_tracker_msgs/Transition.h>
 
-#include <octomap_msgs/Octomap.h>
-#include <octomap/octomap.h>
-#include <ddk_nav_2d/ddkPlanner.h>
+#include <ddk_nav_2d/map_inflation_tool.h>
+#include <ddk_nav_2d/grid_map.h>
+#include <ddk_nav_2d/frontier_planner.h>
+#include <ddk_nav_2d/commands.h>
 
-
-typedef actionlib::SimpleActionServer<ddk_nav_2d::GetFirstMapAction> GetFirstMapActionServer;
-typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreActionServer;
-typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
+#include <ddk_nav_2d/ExploreAction.h>
 
 
 
-class nav2d{
+class Nav2D {
 
 public:
+  Nav2D();
+  ~Nav2D();
 
-    nav2d();
-    ~nav2d();
+  typedef Eigen::Vector3f Vec3;
+  typedef Eigen::Quaternionf Quat;
 
-    typedef Eigen::Vector3f    Vec3;
-    typedef Eigen::Quaternionf Quat;
-    Vec3 pos() { return pos_; }
-    Vec3 vel() { return vel_; }
+  Vec3 pos() { return pos_; }
+  float yaw() { return yaw_; }
 
-    float yaw() { return yaw_; } 
+  // Subscriber call back function
+  void mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map);
+  void poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom);
 
-    ros::Subscriber mapSubscriber;
-    ros::Subscriber poseSubscriber;
+  // Action Server goal callback
+  void receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal);
 
-    void mapSubscriberCB(const nav_msgs::OccupancyGrid &map);
-    void poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom);
-    void receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal);
-	void receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal);
-    
-    bool goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative);
-    bool transition(const std::string &tracker_str);
-    bool getMapIndex();
-    bool preparePlan();
+  // Moving the robot: goTo for line tracker min jerk. trackPath for traj tracker/TrackPath action
+  bool goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative);
+    //method == True will use trackPath action. False will use TrajectoryTracker
+  bool trackPath(nav_msgs::Path planned_path, bool method);
 
-    ddkPlanner mPlanner;
+  // Tracker transition
+  bool transition(const std::string &tracker_str);
+
+  // action client done callback
+  void lineTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result);
+  void trajTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::TrajectoryTrackerResultConstPtr &result);
+  void trackPathDoneCB(const actionlib::SimpleClientGoalState &state, const kr_replanning_msgs::TrackPathResultConstPtr &result);
+
+  // 2D exploration
+  bool getMapIndex();
+  bool preparePlan();
+  void cancelCurrentGoal();
+  double getGoalHeading(unsigned int goal_index);
+
+  // replanning
+  bool getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt, bool method);
+
+
 private:
+  // typedef pluginlib::ClassLoader<ExplorationPlanner> PlanLoader;
+  typedef actionlib::SimpleActionServer<ddk_nav_2d::ExploreAction> ExploreServerType;
+  typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> LineClientType;
+  typedef actionlib::SimpleActionClient<kr_tracker_msgs::TrajectoryTrackerAction> TrajectoryClientType;
+  typedef actionlib::SimpleActionClient<kr_replanning_msgs::TrackPathAction> TrackPathClientType;
 
-    int mStatus;
-    int lineTrackerStatus;
-    Vec3 pos_, vel_;
-    float yaw_, yaw_dot_;
-    Quat odom_q_, imu_q_;
-    ros::Time last_odom_t_;
+  ros::NodeHandle nh_, pnh_;
 
-    // Map related things
-    MapInflationTool mInflationTool;
+  // Subscribers
+  ros::Subscriber map_subscriber_;
+  ros::Subscriber pose_subscriber_;
+  // Publisher
+  ros::Publisher goal_publisher_;
 
-    bool mapUpdated;
-    bool poseUpdated;
-    GridMap mCurrentMap;
-    nav_msgs::Odometry currentPose;
+  ros::Publisher inflated_map_publisher_;
 
-    tf::TransformListener mTfListener;
-    std::string mMapFrame;
-	std::string mRobotFrame;
+  // Status param
+  int node_status_;
+  int line_tracker_status_;
+  int track_path_status_;
+  int traj_tracker_status_;
 
-    // Planning related param
-	double mFrequency;
-	double mInflationRadius;
-	double mRobotRadius;
-	unsigned int mCellInflationRadius;
-	unsigned int mCellRobotRadius;
+  //  Map & Pose
+  // grid_map::GridMap map_test_;
+  bool map_updated_;
+  GridMap current_map_, inflated_map_;
+  Vec3 pos_;
+  double yaw_;
+  Quat odom_q_;
+  ros::Time last_odom_t_;
+  MapInflationTool map_inflation_tool_;
+  bool inflated_map_inflated_;
+  float flight_height_;
+  double frontier_fov_;
+  bool first_scan_;
 
-    signed char mCostObstacle;
-	signed char mCostLethal;
+  // TF param
+  tf2_ros::Buffer tfBuffer_;
+  std::unique_ptr<tf2_ros::TransformListener> tf_listener_ptr_;
+  std::string map_frame_;
+  std::string robot_frame_;
 
-    // action Server
-    GetFirstMapActionServer* mGetFirstMapActionServer;
-    ExploreActionServer* mExploreActionServer;
-    
-    std::string mExploreActionTopic;
-	std::string mGetMapActionTopic;
+  // 2D frontier exploration related param
+  bool goal_recheck_;
+  double obstacle_scan_range_;
+  int goal_frontier_threshold_;
+  double frontier_distance_threshold_;
 
-    // action Client 
-    typedef actionlib::SimpleActionClient<kr_tracker_msgs::LineTrackerAction> ClientType;
-    void tracker_done_callback(const actionlib::SimpleClientGoalState& state, const kr_tracker_msgs::LineTrackerResultConstPtr& result);
-    ClientType* line_tracker_min_jerk_client_;
+  double min_recheck_period_;
+  unsigned int start_point_;
+  unsigned int goal_point_;
+  double frequency_;
+  int cell_robot_radius_;
+  int occupied_cell_threshold_;
+  double map_inflation_radius_;
+  unsigned int cell_map_inflation_radius_;
 
-    // Services
-    ros::ServiceClient srv_transition_;
-    std::string active_tracker_;
-    std::string line_tracker_min_jerk;
+  // strings
+  std::string explore_action_topic_;
+  std::string line_tracker_min_jerk_;
+  std::string traj_tracker_;
 
-    // Plan
-    std::string mExplorationStrategy;
-	boost::shared_ptr<ExplorationPlanner> mExplorationPlanner;
-    PlanLoader* mPlanLoader;
-    double mMinReplanningPeriod;
-	double mMaxReplanningPeriod;
-    unsigned int mGoalPoint;
-	unsigned int mStartPoint;
+  // action Server and param:  exploration server
+  std::unique_ptr<ExploreServerType> explore_action_server_ptr_;
 
-    // delete these three later?
-    double mCurrentDirection;
-	double mCurrentPositionX;
-	double mCurrentPositionY;
+  // action Client: line tracker; trajectory tracker; track path
+  std::unique_ptr<LineClientType> line_tracker_min_jerk_client_ptr_;
+  std::unique_ptr<TrajectoryClientType> traj_tracker_client_ptr_;
+  std::unique_ptr<TrackPathClientType> track_path_action_client_ptr_;
+  std::unique_ptr<FrontierPlanner> frontier_planner_ptr_;
 
+  double server_wait_timeout_;
+
+  // Services client
+  ros::ServiceClient srv_transition_;
+  ros::ServiceClient jps_service_client_;
+
+  boost::mutex map_mutex_;
 };
+
+#endif

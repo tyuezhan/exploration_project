@@ -1,414 +1,569 @@
 #include <ddk_nav_2d/nav2d.h>
-#include <ros/console.h>
 #include <string>
 
-using namespace ros;
+#include <math.h>
 
 #define PI 3.14159265
 
-nav2d::nav2d(){
-    
-    NodeHandle nh;
-    
-    mapSubscriber = nh.subscribe("projected_map", 5, &nav2d::mapSubscriberCB, this);
-    poseSubscriber = nh.subscribe("ddk/ground_truth/odom", 5000, &nav2d::poseSubscriberCB, this);
+Nav2D::Nav2D() {
 
-    // Load planer
-    nh.param("min_replanning_period", mMinReplanningPeriod, 5.0);
-	nh.param("max_replanning_period", mMaxReplanningPeriod, 1.0);
-    nh.param("exploration_strategy", mExplorationStrategy, std::string("NearestFrontierPlanner"));
-    try{
-		mPlanLoader = new PlanLoader("nav2d_navigator", "ExplorationPlanner");
-		mExplorationPlanner = mPlanLoader->createInstance(mExplorationStrategy);
-		ROS_INFO("Successfully loaded exploration strategy [%s].", mExplorationStrategy.c_str());
-        
-	}
-	catch(pluginlib::PluginlibException& ex){
-		ROS_ERROR("Failed to load exploration plugin! Error: %s", ex.what());
-		mExploreActionServer = NULL;
-		mPlanLoader = NULL;
-	}
+  pnh_ = ros::NodeHandle("~");
 
-    // Explore action server
-    nh.param("explore_action_topic", mExploreActionTopic, std::string(NAV_EXPLORE_ACTION));
-    mExploreActionServer = new ExploreActionServer(mExploreActionTopic, boost::bind(&nav2d::receiveExploreGoal, this, _1), false);
-    mExploreActionServer->start();
-    
-    // Get first map action server
-	nh.param("getmap_action_topic", mGetMapActionTopic, std::string(NAV_GETMAP_ACTION));
-    mGetFirstMapActionServer = new GetFirstMapActionServer(mGetMapActionTopic, boost::bind(&nav2d::receiveGetMapGoal, this, _1), false);
-	mGetFirstMapActionServer->start();
+  // Params
+  pnh_.param<double>("min_recheck_period", min_recheck_period_, 8.0);
+  pnh_.param<double>("server_wait_timeout", server_wait_timeout_, 3.0);
+  pnh_.param<std::string>("map_frame", map_frame_, std::string("ddk/odom"));
+  pnh_.param<std::string>("robot_frame", robot_frame_, std::string("ddk/base_link"));
+  pnh_.param<int>("cell_robot_radius", cell_robot_radius_, 1);
+  pnh_.param<double>("frequency", frequency_, 2.0);
+  pnh_.param<int>("occupied_cell_threshold", occupied_cell_threshold_, 1);
+  pnh_.param<std::string>("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
+  pnh_.param<double>("map_inflation_radius", map_inflation_radius_, 0.5);
+  pnh_.param<float>("flight_height", flight_height_, 1.2);
+  pnh_.param<bool>("goal_recheck", goal_recheck_, true);
+  pnh_.param<double>("obstacle_scan_range", obstacle_scan_range_, 1.0);
+  pnh_.param<int>("goal_frontier_num_threshold", goal_frontier_threshold_, 30);
+  pnh_.param<double>("frontier_distance_threshold", frontier_distance_threshold_, 0.5);
+  pnh_.param<double>("frontier_fov", frontier_fov_, 90.0);
+  pnh_.param<bool>("first_360_scan", first_scan_, true);
 
-    mStatus = NAV_ST_IDLE;
-    lineTrackerStatus = NAV_ST_IDLE;
-    line_tracker_min_jerk_client_= new ClientType(nh, "ddk/trackers_manager/line_tracker_min_jerk/LineTracker", true);
-    float serverWaitTimeout;
-    nh.param("Server_wait_timeout", serverWaitTimeout, 0.5f);
-    if (!line_tracker_min_jerk_client_->waitForServer(ros::Duration(serverWaitTimeout))) {
+  // Subscriber
+  map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
+  pose_subscriber_ = nh_.subscribe("odom", 10, &Nav2D::poseSubscriberCB, this);
+  // Publisher
+  goal_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("goal_point", 5);
+
+  //for debug usage
+  inflated_map_publisher_ = nh_.advertise<nav_msgs::OccupancyGrid>("inflated_map", 5);
+
+  // Services
+  srv_transition_ = nh_.serviceClient<kr_tracker_msgs::Transition>("trackers_manager/transition");
+  jps_service_client_ = nh_.serviceClient<nav_msgs::GetPlan>("jps_plan_service");
+
+  // Action client
+  line_tracker_min_jerk_client_ptr_.reset(new LineClientType(nh_, "trackers_manager/line_tracker_min_jerk/LineTracker", true));
+  if (!line_tracker_min_jerk_client_ptr_->waitForServer(ros::Duration(server_wait_timeout_))) {
     ROS_ERROR("LineTrackerMinJerk server not found.");
-    }
+  }
+  traj_tracker_client_ptr_.reset(new TrajectoryClientType(nh_, "trackers_manager/trajectory_tracker/TrajectoryTracker", true));
+  if (!traj_tracker_client_ptr_->waitForServer(ros::Duration(server_wait_timeout_))) {
+    ROS_ERROR("TrajectoryTracker server not found.");
+  }
+  track_path_action_client_ptr_.reset(new TrackPathClientType(nh_, "TrackPathAction", true));
+  if (!track_path_action_client_ptr_->waitForServer(ros::Duration(server_wait_timeout_))) {
+    ROS_ERROR("track path action server not found.");
+  }
 
-    // Services
-    line_tracker_min_jerk = "kr_trackers/LineTrackerMinJerk";
-    active_tracker_ = "";
-    srv_transition_ = nh.serviceClient<kr_tracker_msgs::Transition>("ddk/trackers_manager/transition");
+  // tf listener
+  tf_listener_ptr_.reset(new tf2_ros::TransformListener(tfBuffer_));
 
-    // tf listener
-    nh.param("map_frame", mMapFrame, std::string("ddk/odom"));
-	nh.param("robot_frame", mRobotFrame, std::string("ddk/base_link"));
-    mRobotFrame = mTfListener.resolve(mRobotFrame);
-	mMapFrame = mTfListener.resolve(mMapFrame);
+  // Init Params
+  map_updated_ = false;
+  node_status_ = NAV_ST_IDLE;
+  line_tracker_status_ = NAV_ST_IDLE;
+  track_path_status_ = NAV_ST_IDLE;
+  traj_tracker_status_ = NAV_ST_IDLE;
 
-    // Planning related param
-    nh.param("map_inflation_radius", mInflationRadius, 1.0);
-    nh.param("robot_radius", mRobotRadius, 0.2);
-    mCostObstacle = 100;
-    // mCostLethal = (3.0 - (mRobotRadius / mInflationRadius)) * (double)mCostObstacle;
-    mCostLethal = 100;
-    mapUpdated = false;
-}
+  // Strings for tracker transition
+  line_tracker_min_jerk_ = "kr_trackers/LineTrackerMinJerk";
+  traj_tracker_ = "kr_trackers/TrajectoryTracker";
 
-nav2d::~nav2d(){
-    ROS_INFO("Bye");
-    delete mExploreActionServer;
-	delete mGetFirstMapActionServer;
-	mExplorationPlanner.reset();
-	delete mPlanLoader;
-    delete line_tracker_min_jerk_client_;
-}
+  frontier_planner_ptr_.reset(new FrontierPlanner(map_frame_));
+  frontier_planner_ptr_->setObstacleScanRange(obstacle_scan_range_);
+  frontier_planner_ptr_->setGoalFrontierThreshold(goal_frontier_threshold_);
+  frontier_planner_ptr_->setFrontierDistanceThreshold(frontier_distance_threshold_);
+  frontier_planner_ptr_->setFovRange(frontier_fov_);
 
-
-void nav2d::mapSubscriberCB(const nav_msgs::OccupancyGrid &map){
-    ROS_INFO("Map update received.");
-    mCurrentMap.update(map);
-    
-    // if(mCellInflationRadius == 0){
-		// ROS_INFO("Navigator is now initialized.");
-		// mCellInflationRadius = mInflationRadius / mCurrentMap.getResolution();
-		// mCellRobotRadius = mRobotRadius / mCurrentMap.getResolution();
-	    // 	mInflationTool.computeCaches(mCellInflationRadius);
-		// mCurrentMap.setLethalCost(mCostLethal);
-	// }
-
-    if (mapUpdated == false){
-        ROS_INFO("Navigator is now initialized.");
-        mCellRobotRadius = 10;
-        mCurrentMap.setLethalCost(mCostLethal);
-    }
-    mapUpdated = true;
-
+  // Action server
+  explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));
+  explore_action_server_ptr_->start();
 }
 
 
-void nav2d::poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom){
-    // ROS_INFO("pose update received.");
-    // ROS_DEBUG("Pose update received.");
-    // currentPose = odom;
-    
-    pos_(0) = odom->pose.pose.position.x;
-    pos_(1) = odom->pose.pose.position.y;
-    pos_(2) = odom->pose.pose.position.z;
-
-    vel_(0) = odom->twist.twist.linear.x;
-    vel_(1) = odom->twist.twist.linear.y;
-    vel_(2) = odom->twist.twist.linear.z;
-
-    odom_q_ = Quat(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x,
-                    odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
-
-    yaw_ = tf::getYaw(odom->pose.pose.orientation);
-    yaw_dot_ = odom->twist.twist.angular.z;
-
-    last_odom_t_ = ros::Time::now();
-    poseUpdated = true;
-
+Nav2D::~Nav2D() {
+  // exploration_planner_.reset();
 }
 
 
-// TODO: receive explore goal. recive map goal
+void Nav2D::mapSubscriberCB(const nav_msgs::OccupancyGrid::ConstPtr &map) {
+  boost::mutex::scoped_lock lock(map_mutex_);
+  current_map_.update(map);
+  inflated_map_.update(map);
+  if (map_updated_ == false) {
+    ROS_INFO("Navigator is now initialized.");
+    cell_map_inflation_radius_ = map_inflation_radius_ / current_map_.getResolution();
+    ROS_INFO("Inflation cell radius: %u", cell_map_inflation_radius_);
+    map_inflation_tool_.computeCaches(cell_map_inflation_radius_);
+    current_map_.setLethalCost((signed char)occupied_cell_threshold_);
+    inflated_map_.setLethalCost((signed char)occupied_cell_threshold_);
+  }
+  map_updated_ = true;
+  inflated_map_inflated_ = false;
 
-void nav2d::receiveGetMapGoal(const ddk_nav_2d::GetFirstMapGoal::ConstPtr &goal){
-    ROS_INFO("nav2d: Received get first map goal.");
-    Rate loopRate(2);
+  // Compute map inflation
+  if (!inflated_map_inflated_){
+    map_inflation_tool_.inflateMap(&inflated_map_);
+    inflated_map_inflated_ = true;
+    inflated_map_publisher_.publish(inflated_map_.getMap());
+  }
+}
 
-    if(mStatus != NAV_ST_IDLE){
-		ROS_WARN("Navigator is busy!");
-		mGetFirstMapActionServer->setAborted();
-		return;
-	}
 
-    if (mGetFirstMapActionServer->isPreemptRequested()){
-        ROS_INFO("Get first map has been preempted externally.");
-        mGetFirstMapActionServer->setPreempted();
-        return;
+void Nav2D::poseSubscriberCB(const nav_msgs::Odometry::ConstPtr &odom) {
+  // ROS_INFO("pose update received.");
+  pos_(0) = odom->pose.pose.position.x;
+  pos_(1) = odom->pose.pose.position.y;
+  pos_(2) = odom->pose.pose.position.z;
+
+  odom_q_ = Quat(odom->pose.pose.orientation.w, odom->pose.pose.orientation.x,
+                 odom->pose.pose.orientation.y, odom->pose.pose.orientation.z);
+
+  // yaw_ = tf2::getYaw(odom->pose.pose.orientation);
+  double yaw, _pitch, _roll;
+  tf2::Matrix3x3(tf2::Quaternion(odom->pose.pose.orientation.x, odom->pose.pose.orientation.y,
+                                 odom->pose.pose.orientation.z, odom->pose.pose.orientation.w)).getEulerYPR(yaw, _pitch, _roll);
+  yaw_ = yaw;
+  last_odom_t_ = ros::Time::now();
+}
+
+
+void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
+  ROS_INFO("Nav2D: Received explore goal.");
+  if (!map_updated_) {
+    ROS_ERROR("No map received!");
+    explore_action_server_ptr_->setAborted();
+    return;
+  }
+
+  if (node_status_ != NAV_ST_IDLE) {
+    ROS_WARN("Navigator is busy!");
+    explore_action_server_ptr_->setAborted();
+    return;
+  }
+
+  node_status_ = NAV_ST_EXPLORING;
+
+  // Params related to recheck goal
+  unsigned int cycle = 0;
+  unsigned int last_check = 0;
+  bool recheck;
+  // unsigned int recheck_cycles = min_recheck_period_ * frequency_;
+  ros::Time last_frontier_time = ros::Time::now();
+  float last_goal_x, last_goal_y;
+
+  // set to change use traj tracker / TrackPath.
+  bool track_path = true;
+
+  bool moving = false;
+  ros::Rate loop_rate(frequency_);
+
+  // Go straight
+  float straight = 0;
+  while (true) {
+    if (straight >= 0.5 && line_tracker_status_ == NAV_ST_IDLE)
+      break;
+    if (line_tracker_status_ == NAV_ST_IDLE) {
+      goTo(0.5, 0, 0, 0, 0.0f, 0.0f, true);
+      straight += 0.5;
     }
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
 
-    ddk_nav_2d::GetFirstMapFeedback f;
-
-    // Go straight
-    float distance = 0;
-    while(true){
-        if (distance >= 2) break;
-        mGetFirstMapActionServer->publishFeedback(f);
-        if (lineTrackerStatus == NAV_ST_IDLE){
-            goTo(1, 0, 0, 0, 0.0f, 0.0f, true);
-            distance += 1;
-        }
-        spinOnce();
-		loopRate.sleep();
-    }
-    
-
-    // Turn 360, get first map
+  // Turn 360, get first map
+  if (first_scan_){
     float rotation = 0;
-    while(true){
-        if (rotation >= 6.282) break;
-        // ROS_INFO("In the loop.");
-        mGetFirstMapActionServer->publishFeedback(f);
-        if (lineTrackerStatus == NAV_ST_IDLE){
-            ROS_INFO("Move");
-            goTo(0, 0, 0, 2.094, 0.0f, 0.0f, true);
-            rotation += 2.094;
-        }
-        spinOnce();
-		loopRate.sleep();
+    while (true) {
+      if (rotation >= 6.282 && line_tracker_status_ == NAV_ST_IDLE)
+        break;
+      if (line_tracker_status_ == NAV_ST_IDLE) {
+        goTo(0, 0, 0, 3.141, 0.0f, 0.0f, true);
+        rotation += 3.141;
+      }
+      ros::spinOnce();
+      loop_rate.sleep();
+    }
+  }
+
+
+  // Move to exploration target
+  while (true) {
+    if (explore_action_server_ptr_->isPreemptRequested()) {
+      ROS_INFO("Exploration has been preempted externally.");
+      explore_action_server_ptr_->setPreempted();
+      return;
     }
 
-    ROS_INFO("Set succeeded");
-    mGetFirstMapActionServer->setSucceeded();
-}
+    // get current map index
+    if (!getMapIndex()) {
+      ROS_ERROR("Exploration failed, could not get current position.");
+      explore_action_server_ptr_->setAborted();
+      return;
+    }
 
-void nav2d::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal){
-    ROS_INFO("nav2d: Received explore goal.");
-    if(mStatus != NAV_ST_IDLE)
-	{
-		ROS_WARN("Navigator is busy!");
-		mExploreActionServer->setAborted();
-		return;
-	}
-    mStatus = NAV_ST_EXPLORING;
-	unsigned int cycle = 0;
-	unsigned int lastCheck = 0;
-	unsigned int recheckCycles = mMinReplanningPeriod * mFrequency;
-	unsigned int recheckThrottle = mMaxReplanningPeriod * mFrequency;
+    // check current status
+    if (track_path_status_ == NAV_ST_IDLE && traj_tracker_status_ == NAV_ST_IDLE && line_tracker_status_ == NAV_ST_IDLE){
+      moving = false;
+    } else {
+      moving = true;
+    }
 
-    // Move to exploration target
-	// Rate loopRate(mFrequency);
-    Rate loopRate(1);
-	while(true){
+    // recheck for exploration target
 
-        if (mExploreActionServer->isPreemptRequested()){
-            ROS_INFO("Exploration has been preempted externally.");
-			mExploreActionServer->setPreempted();
-            return;
-        }
+    // Recheck acoording to distance
+    // if (goal_recheck_) {
+    //   recheck = last_check == 0 ||(recheck_cycles && (cycle - last_check > recheck_cycles));
+    // } else {
+    //   recheck = goal_recheck_;
+    // }
 
-        // get current map index
-        if (!getMapIndex()){
-            ROS_ERROR("Exploration failed, could not get current position.");
-			mExploreActionServer->setAborted();
-			return;
-        }
+    // Recheck acoording to time
+    if (goal_recheck_) {
+      ros::Time current_time = ros::Time::now();
+      if ((current_time.toSec() - last_frontier_time.toSec()) > min_recheck_period_) {
+        recheck = true;
+      } else {
+        recheck = false;
+      }
+    } else {
+      recheck = false;
+    }
 
-        // recheck for exploration target
-        bool reCheck = lastCheck == 0 || (recheckCycles && (cycle - lastCheck > recheckCycles));
-        bool goalReached = false;
-        if (lineTrackerStatus == NAV_ST_IDLE){
-            goalReached = true;
-            ROS_INFO("Set goal reached true. can continue explore");
-        } 
+    // Not moving(reached goal) or recheck, need to find new frontiers.
+    if (!moving || recheck){
+      boost::mutex::scoped_lock lock(map_mutex_);
+      if (preparePlan()) {
+        int result = frontier_planner_ptr_->findExplorationTarget(&inflated_map_, yaw_, start_point_, goal_point_);
+        switch (result) {
 
-        if (reCheck || goalReached){
-            WallTime startTime = WallTime::now();
-            lastCheck = cycle;
+        case EXPL_TARGET_SET:
+          ROS_INFO("EXPL TARGET SET");
+          last_frontier_time = ros::Time::now();
+          if (recheck || !moving) {
+            unsigned int goal_x = 0, goal_y = 0;
+            if (inflated_map_.getCoordinates(goal_x, goal_y, goal_point_)) {
+              float map_goal_x = inflated_map_.getOriginX() + (((double)goal_x + 0.5) * inflated_map_.getResolution());
+              float map_goal_y = inflated_map_.getOriginY() + (((double)goal_y + 0.5) * inflated_map_.getResolution());
+              float map_goal_z = flight_height_;
 
-            // bool success = false;
-            if(preparePlan()){
-                // ROS_INFO("Enter prepare plan true");
-                GridMap currentMapCopy = mCurrentMap;
-                int result = mExplorationPlanner->findExplorationTarget(&currentMapCopy, mStartPoint, mGoalPoint);
-                ROS_INFO("result: %d", result);
-                switch(result){
-                    case EXPL_TARGET_SET:
-                        ROS_INFO("EXPL TARGET SET");
-                        if (lineTrackerStatus == NAV_ST_IDLE){
-                            unsigned int goal_x = 0, goal_y = 0;
-                            if(mCurrentMap.getCoordinates(goal_x,goal_y,mGoalPoint)){
-                                float worldGoalX = mCurrentMap.getOriginX() + (((double)goal_x+0.5) * mCurrentMap.getResolution());
-                                float worldGoalY = mCurrentMap.getOriginY() + (((double)goal_y+0.5) * mCurrentMap.getResolution());
-                                float worldGoalZ = 0.4;
-                                float yaw;
-
-                                yaw = atan2(pos_(1)-worldGoalY, pos_(0)-worldGoalX);
-                                yaw += PI;
-                                if(yaw < -PI) yaw += 2*PI;
-                                if(yaw > PI) yaw -= 2*PI;
-                                
-                                lineTrackerStatus = NAV_ST_TURNING;
-                                while(true){
-                                    if (lineTrackerStatus == NAV_ST_IDLE) break;
-                                    ROS_INFO("turning");
-                                    if (lineTrackerStatus == NAV_ST_TURNING){
-                                        goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
-                                    }                        
-                                    spinOnce();
-                                    loopRate.sleep();
-                                }
-                                // mStatus = NAV_ST_EXPLORING;
-                                goTo(worldGoalX, worldGoalY, worldGoalZ, yaw, 0.0f, 0.0f, false);
-                                ROS_INFO("goal: %f, %f, %f, %f", worldGoalX, worldGoalY, worldGoalZ, yaw);
-                                mStatus = NAV_ST_EXPLORING;
-                            }
-                        }
-                        break;
-                    case EXPL_FINISHED:
-                        {
-                            ddk_nav_2d::ExploreResult r;
-                            r.final_pose.x = pos_(0);
-                            r.final_pose.y = pos_(1);
-                            r.final_pose.theta = yaw_;
-                            mExploreActionServer->setSucceeded(r);
-                        }
-                        ROS_INFO("Exploration has finished.");
-                        return;
-                    case EXPL_WAITING:
-                        mStatus = NAV_ST_WAITING;
-                        ROS_INFO("Exploration is waiting.");
-					    break;
-                    case EXPL_FAILED:
-                        break;
-                    default:
-					ROS_ERROR("Exploration planner returned invalid status code: %d!", result);
+              if (recheck && moving){
+              // last_check = cycle;
+              ROS_INFO("Enter recheck exploration goal point.");
+                if (std::abs(last_goal_x - map_goal_x) > 0.1 || std::abs(last_goal_y - map_goal_y) > 0.1){
+                  // should cancel current move
+                  cancelCurrentGoal();
+                  ROS_INFO("Cancel current goal. reason: x: %f y: %f", std::abs(last_goal_x - map_goal_x), std::abs(last_goal_y - map_goal_y));
+                  // getMapIndex();
+                  break;
                 }
+              }
+              // Change current status
+              moving = true;
+              node_status_ = NAV_ST_EXPLORING;
+
+              last_goal_x = map_goal_x;
+              last_goal_y = map_goal_y;
+
+              float yaw;
+              yaw = atan2(pos_(1) - map_goal_y, pos_(0) - map_goal_x);
+              yaw += PI;
+              if (yaw < -PI) yaw += 2 * PI;
+              if (yaw > PI) yaw -= 2 * PI;
+
+              // Turn head, needed for Trajectory tracker.
+              if (!track_path){
+                line_tracker_status_ = NAV_ST_TURNING;
+                while(true){
+                    if (line_tracker_status_ == NAV_ST_IDLE) break;
+                    if (line_tracker_status_ == NAV_ST_TURNING){
+                        goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
+                    }
+                    ros::spinOnce();
+                    loop_rate.sleep();
+                }
+              }
+
+              ROS_INFO("goal: %f, %f, %f, %f", map_goal_x, map_goal_y, map_goal_z, yaw);
+              // Check goal occupancy:
+              signed char goal_value = inflated_map_.getData(goal_point_);
+              ROS_INFO("Current Goal Value is: %u", goal_value);
+              double distance = std::sqrt(std::pow(map_goal_x - pos_(0), 2) +
+                                std::pow(map_goal_y - pos_(1), 2) +
+                                std::pow(map_goal_z - pos_(2), 2));
+              ROS_INFO("Distance to goal: %f", distance);
+
+              // Recheck acoording to distance
+              // if (distance > 3) recheck_cycles = (3 * 5 + 5) * frequency_;
+              // recheck_cycles = (distance * 5 + 5) * frequency_;
+
+              // Gen arguments needed for getJpsTraj function.
+              double local_time = 0.0;
+              // get current odom transform
+              geometry_msgs::TransformStamped transformStamped;
+              try {
+                transformStamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));
+              }
+              catch (tf2::TransformException &ex) {
+                ROS_INFO("Couldn't get current odom transform");
+                ROS_WARN("%s", ex.what());
+                return;
+              }
+              Eigen::Affine3d dT_o_w;
+              dT_o_w = tf2::transformToEigen(transformStamped);
+              Eigen::Affine3f tf_odom_to_world = dT_o_w.cast<float>();
+
+              // Check what is the expected goal yaw.
+              double goal_yaw = getGoalHeading(goal_point_);
+              if (goal_yaw < 0) ROS_ERROR("Goal heading -1.");
+
+              tf2::Quaternion tf2_quaternion;
+              tf2_quaternion.setRPY(0, 0, goal_yaw);
+              geometry_msgs::Quaternion goal_quaternion = tf2::toMsg(tf2_quaternion);
+
+              geometry_msgs::PoseStamped goal;
+              goal.header.frame_id = map_frame_;
+              goal.header.stamp = ros::Time::now();
+              goal.pose.position.x = map_goal_x;
+              goal.pose.position.y = map_goal_y;
+              goal.pose.position.z = map_goal_z;
+              goal.pose.orientation = goal_quaternion;
+
+              // Publish goal for visualization in rviz
+              goal_publisher_.publish(goal);
+
+              bool ret = getJpsTraj(local_time, tf_odom_to_world, goal, track_path);
+
             }
+          }
+          break;
 
-            if(mStatus == NAV_ST_EXPLORING)
-			{
-				if(lineTrackerStatus == NAV_ST_NAVIGATING)
-				{
-                    ROS_INFO("moving.");
-					WallTime endTime = WallTime::now();
-					// WallDuration d = endTime - startTime;
-					// ROS_DEBUG("Exploration planning took %.09f seconds", d.toSec());
-				}else
-				{
-					mExploreActionServer->setAborted();
-					ROS_WARN("Exploration has failed!");
-                    mStatus = NAV_ST_IDLE;
-					return;
-				}
-			}
+        case EXPL_FINISHED: {
+          ddk_nav_2d::ExploreResult r;
+          r.final_pose.x = pos_(0);
+          r.final_pose.y = pos_(1);
+          r.final_pose.theta = yaw_;
+          explore_action_server_ptr_->setSucceeded(r);
         }
+          ROS_INFO("Exploration has finished.");
+          return;
 
-        if(mStatus == NAV_ST_EXPLORING)
-		{
-			// Publish feedback via ActionServer
-			if(cycle%10 == 0)
-			{
-				ddk_nav_2d::ExploreFeedback fb;
-				fb.robot_pose.x = pos_(0);
-				fb.robot_pose.y = pos_(1);
-				fb.robot_pose.theta = yaw_;
-				mExploreActionServer->publishFeedback(fb);
-			}
-
-		}
-
-		// Sleep remaining time
-		cycle++;
-		spinOnce();
-		loopRate.sleep();
-		// if(loopRate.cycleTime() > ros::Duration(1.0 / mFrequency))
-			// ROS_WARN("Missed desired rate of %.2fHz! Loop actually took %.4f seconds!",mFrequency, loopRate.cycleTime().toSec());
+        case EXPL_WAITING:
+          node_status_ = NAV_ST_WAITING;
+          ROS_INFO("Exploration is waiting.");
+          break;
+        case EXPL_FAILED:
+          ROS_INFO("Exploration failed.");
+          break;
+        default:
+          ROS_ERROR("Exploration planner returned invalid status code: %d!", result);
+        }
+      } else {
+        // Prepare plan failed.
+        ROS_ERROR("Exploration failed, prepare plan failed.");
+        explore_action_server_ptr_->setAborted();
+        return;
+      }
     }
+
+
+    if (node_status_ == NAV_ST_EXPLORING) {
+      if (moving) {
+        // ROS_INFO("moving.");
+        // Publish feedback via ActionServer
+        if (cycle % 10 == 0) {
+          ddk_nav_2d::ExploreFeedback fb;
+          fb.robot_pose.x = pos_(0);
+          fb.robot_pose.y = pos_(1);
+          fb.robot_pose.theta = yaw_;
+          explore_action_server_ptr_->publishFeedback(fb);
+        }
+      }
+    }
+
+    // Sleep remaining time
+    cycle++;
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
 }
 
 
-bool nav2d::goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative){
-    kr_tracker_msgs::LineTrackerGoal goal;
-    goal.x = x;
-    goal.y = y;
+bool Nav2D::goTo(float x, float y, float z, float yaw, float v_des, float a_des, bool relative) {
+  kr_tracker_msgs::LineTrackerGoal goal;
+  goal.x = x;
+  goal.y = y;
+  goal.relative = relative;
+  // Convert relative translation in body frame to global frame
+  if (relative) {
+    goal.x = x * std::cos(yaw_) - y * std::sin(yaw_);
+    goal.y = x * std::sin(yaw_) + y * std::cos(yaw_);
+  }
+  goal.z = z;
+  goal.yaw = yaw;
+  goal.v_des = v_des;
+  goal.a_des = a_des;
 
-    goal.relative = relative;
-    //Convert relative translation in body frame to global frame
-    if(relative)
-    {
-        goal.x = x * std::cos(yaw_) - y * std::sin(yaw_);
-        goal.y = x * std::sin(yaw_) + y * std::cos(yaw_);
-    }
-
-    goal.z = z;
-    goal.yaw = yaw;
-    goal.v_des = v_des;
-    goal.a_des = a_des;
-
-    line_tracker_min_jerk_client_->sendGoal(goal, boost::bind(&nav2d::tracker_done_callback, this, _1, _2), ClientType::SimpleActiveCallback(), ClientType::SimpleFeedbackCallback());
-    lineTrackerStatus = NAV_ST_NAVIGATING;
-
-    return transition(line_tracker_min_jerk);
+  line_tracker_min_jerk_client_ptr_->sendGoal(
+      goal, boost::bind(&Nav2D::lineTrackerDoneCB, this, _1, _2),
+      LineClientType::SimpleActiveCallback(), LineClientType::SimpleFeedbackCallback());
+  line_tracker_status_ = NAV_ST_NAVIGATING;
+  return transition(line_tracker_min_jerk_);
 }
 
 
-void nav2d::tracker_done_callback(const actionlib::SimpleClientGoalState& state, const kr_tracker_msgs::LineTrackerResultConstPtr& result){
-    ROS_INFO("Goal reached.");
-    lineTrackerStatus = NAV_ST_IDLE;
-};
+bool Nav2D::trackPath(nav_msgs::Path planned_path, bool method) {
+  if (method){
+    kr_replanning_msgs::TrackPathGoal path_goal;
+    path_goal.path = planned_path;
+    track_path_action_client_ptr_->sendGoal(
+      path_goal, boost::bind(&Nav2D::trackPathDoneCB, this, _1, _2),
+      TrackPathClientType::SimpleActiveCallback(),
+      TrackPathClientType::SimpleFeedbackCallback());
+    track_path_status_ = NAV_ST_NAVIGATING;
+    ROS_INFO("Send Track Path goal to server.");
+    return true;
+  } else {
+    kr_tracker_msgs::TrajectoryTrackerGoal path_goal;
+    for (int i = 0; i < planned_path.poses.size(); i++){
+      path_goal.waypoints.push_back(planned_path.poses[i].pose);
+    }
+    traj_tracker_client_ptr_->sendGoal(
+      path_goal, boost::bind(&Nav2D::trajTrackerDoneCB, this, _1, _2),
+      TrajectoryClientType::SimpleActiveCallback(), TrajectoryClientType::SimpleFeedbackCallback());
+    traj_tracker_status_ = NAV_ST_NAVIGATING;
+    ROS_INFO("Send trajectory tracker goal to server.");
+    return transition(traj_tracker_);
+  }
+  return true;
+}
 
 
-bool nav2d::transition(const std::string &tracker_str) {
+void Nav2D::cancelCurrentGoal() {
+  if (track_path_status_ != NAV_ST_IDLE) {
+    track_path_action_client_ptr_->cancelGoal();
+    track_path_status_ = NAV_ST_IDLE;
+  }
+  if (traj_tracker_status_ != NAV_ST_IDLE) {
+    traj_tracker_client_ptr_->cancelGoal();
+    traj_tracker_status_ = NAV_ST_IDLE;
+  }
+  if (line_tracker_status_ != NAV_ST_IDLE) {
+    line_tracker_min_jerk_client_ptr_->cancelGoal();
+    line_tracker_status_ = NAV_ST_IDLE;
+  }
+  ROS_WARN("Cancel current goal");
+}
+
+
+void Nav2D::lineTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::LineTrackerResultConstPtr &result) {
+  ROS_INFO("Goal reached.");
+  line_tracker_status_ = NAV_ST_IDLE;
+}
+
+
+void Nav2D::trackPathDoneCB(
+    const actionlib::SimpleClientGoalState &state,
+    const kr_replanning_msgs::TrackPathResultConstPtr &result) {
+  // ROS_WARN("Track Path done. results: %d, %s", result->result, result->error_msg);
+  track_path_status_ = NAV_ST_IDLE;
+}
+
+
+void Nav2D::trajTrackerDoneCB(const actionlib::SimpleClientGoalState &state, const kr_tracker_msgs::TrajectoryTrackerResultConstPtr &result) {
+  ROS_INFO("trajTracker goal reached.");
+  traj_tracker_status_ = NAV_ST_IDLE;
+}
+
+
+bool Nav2D::transition(const std::string &tracker_str) {
   kr_tracker_msgs::Transition transition_cmd;
   transition_cmd.request.tracker = tracker_str;
 
   if (srv_transition_.call(transition_cmd) && transition_cmd.response.success) {
-    active_tracker_ = tracker_str;
     ROS_INFO("Current tracker: %s", tracker_str.c_str());
     return true;
   }
-
   return false;
 }
 
 
-bool nav2d::getMapIndex(){
-    tf::StampedTransform transform;
-	try
-	{
-		mTfListener.lookupTransform(mMapFrame, mRobotFrame, Time(0), transform);
-	}catch(tf::TransformException ex)
-	{
-		ROS_ERROR("Could not get robot position: %s", ex.what());
-		return false;
-	}
-    double world_x = transform.getOrigin().x();
-	double world_y = transform.getOrigin().y();
-	double world_theta = getYaw(transform.getRotation());
+bool Nav2D::getMapIndex() {
+  geometry_msgs::TransformStamped transform_stamped;
+  try {
+    transform_stamped = tfBuffer_.lookupTransform(map_frame_, robot_frame_, ros::Time(0));
+  }
+  catch (tf2::TransformException &ex) {
+    ROS_INFO("Couldn't get robot position");
+    ROS_WARN("%s", ex.what());
+    return false;
+  }
+  tf2::Stamped<tf2::Transform> transform;
+  tf2::fromMsg(transform_stamped, transform);
 
-	unsigned int current_x = (world_x - mCurrentMap.getOriginX()) / mCurrentMap.getResolution();
-	unsigned int current_y = (world_y - mCurrentMap.getOriginY()) / mCurrentMap.getResolution();
-	unsigned int i;
+  double world_x = transform.getOrigin().x();
+  double world_y = transform.getOrigin().y();
+  unsigned int current_x = (world_x - inflated_map_.getOriginX()) / inflated_map_.getResolution();
+  unsigned int current_y = (world_y - inflated_map_.getOriginY()) / inflated_map_.getResolution();
 
-    mCurrentMap.getIndex(current_x, current_y, i);
-    signed char valueHere = mCurrentMap.getData(current_x, current_y);
-    // ROS_INFO("Check current position map value: %u", valueHere);
-    mStartPoint = i;
+  unsigned int start_point;
+  inflated_map_.getIndex(current_x, current_y, start_point);
+  start_point_ = start_point;
 
-    ROS_INFO("Get map index: %f, %f, %d, %d, %d", world_x, world_y, current_x, current_y, i);
+  // ROS_INFO("Get current map index: worldX:%f, worldY:%f, mapInd_x:%d, mapInd_y:%d, startpoint:%d", world_x, world_y, current_x, current_y, start_point);
+  return true;
+}
+
+
+bool Nav2D::preparePlan() {
+  if (!getMapIndex()) return false;
+
+  // Clear robot footprint in map
+  unsigned int x = 0, y = 0;
+  if (inflated_map_.getCoordinates(x, y, start_point_))
+    for (int i = -cell_robot_radius_; i < cell_robot_radius_; i++)
+      for (int j = -cell_robot_radius_; j < cell_robot_radius_; j++)
+        inflated_map_.setData(x + i, y + j, 0);
+
+  inflated_map_publisher_.publish(inflated_map_.getMap());
+  ROS_INFO("prepare plan ready, set Startpoint as %d", start_point_);
+  return true;
+}
+
+
+bool Nav2D::getJpsTraj(const double &traj_time, const Eigen::Affine3f &o_w_transform, geometry_msgs::PoseStamped &min_cost_pt, bool method) {
+  nav_msgs::GetPlan jps_srv;
+  jps_srv.request.start = min_cost_pt;
+  jps_srv.request.start.pose.position.x = o_w_transform.translation()[0];
+  jps_srv.request.start.pose.position.y = o_w_transform.translation()[1];
+  jps_srv.request.start.pose.position.z = o_w_transform.translation()[2];
+  jps_srv.request.goal = min_cost_pt;
+  if (jps_service_client_.call(jps_srv)) {
+    ROS_INFO("Successful jps service call");
+
+    if (jps_srv.response.plan.poses.size() == 0) {
+      ROS_ERROR("JPS did not return a path");
+      return false;
+    }
+    trackPath(jps_srv.response.plan, method);
     return true;
+  } else {
+    ROS_ERROR("Failed to jps call service");
+    return false;
+  }
 }
 
-bool nav2d::preparePlan(){
-	// Where am I?
-	if(!getMapIndex()) return false;
-	
-	// Clear robot footprint in map
-	unsigned int x = 0, y = 0;
-	if(mCurrentMap.getCoordinates(x, y, mStartPoint))
-		for(int i = -mCellRobotRadius; i < (int)mCellRobotRadius; i++)
-			for(int j = -mCellRobotRadius; j < (int)mCellRobotRadius; j++)
-				mCurrentMap.setData(x+i, y+j, 0);
-	ROS_INFO("prepare plan, set Startpoint as %d", mStartPoint);
-	// mInflationTool.inflateMap(&mCurrentMap);
-	return true;
+double Nav2D::getGoalHeading(unsigned int goal_index) {
+  unsigned int map_width = inflated_map_.getWidth();
+  int y = goal_index / map_width;
+  int x = goal_index % map_width;
+  if(inflated_map_.getData(x-1, y-1) == -1) return 225*PI/180;
+  if(inflated_map_.getData(x-1, y  ) == -1) return 180*PI/180;
+  if(inflated_map_.getData(x-1, y+1) == -1) return 135*PI/180;
+  if(inflated_map_.getData(x  , y-1) == -1) return 270*PI/180;
+  if(inflated_map_.getData(x  , y+1) == -1) return 90*PI/180;
+  if(inflated_map_.getData(x+1, y-1) == -1) return 315*PI/180;
+  if(inflated_map_.getData(x+1, y  ) == -1) return 0.0;
+  if(inflated_map_.getData(x+1, y+1) == -1) return 45*PI/180;
+
+  return -1.0;
 }
-
-
