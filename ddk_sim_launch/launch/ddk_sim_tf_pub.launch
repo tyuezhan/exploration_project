@@ -25,8 +25,8 @@
       <param name="tf_prefix" value="$(arg mav_name)"/>
     </node>
 
-    <!-- connect base_link to $(arg mav_name)/base_link TODO use tf_prefix correctly-->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_dummy" args="0 0 0 0 0 0 1 $(arg mav_name)/base_link base_link"/>
+    <!-- connect base_link to $(arg mav_name)/base_link TODO use tf_prefix correctly
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_dummy" args="0 0 0 0 0 0 1 $(arg mav_name)/base_link base_link"/> -->
 
   </group>
 </launch>
