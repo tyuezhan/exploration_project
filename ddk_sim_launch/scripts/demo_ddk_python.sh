@@ -64,7 +64,7 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; rosservice call ddk/StartExp
 tmux new-window -t $SESSION_NAME -n "Plan"
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning snav_obstacle_demo.launch mav_name:=${MAV_NAME}" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps2d.launch mav_name:=${MAV_NAME}" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps2d.launch mav_name:=${MAV_NAME} map_topic:=projected_map" Enter
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps3d.launch mav_name:=${MAV_NAME}" Enter
 tmux select-layout -t $SESSION_NAME tiled
