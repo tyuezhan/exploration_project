@@ -81,40 +81,33 @@ class KrInterface:
     self.map_updated_ = True
 
   def do_work(self, event):
-
     rospy.logwarn('Timer called at ' + str(event.current_real))
 
-    #Get the current map (subscribed)
-
-    # Get current location map Index
-    if not self.get_map_index():
-      rospy.logerr("Exploration failed, could not get current position.")
-      return
+    ##### Get the current map (subscribed)
 
     #TODO inflate the map
     #TODO Scale the map for inference
 
-    #Get the frontiers/next waypoint (frontier or NN)
+    ##### Get the frontiers/next waypoint (frontier or NN)
     ret, waypoint = self.get_frontier_waypoint()
     if not ret:
       rospy.logerr('Did not get a valid waypoint')
       return
 
-    #Sanitize/check the generated waypoint
+    ##### Sanitize/check the generated waypoint
 
-    #Generate a 2D path to the waypoint
+    ##### Generate a 2D path to the waypoint
     ret, jps_path = self.get_2d_path(waypoint)
     if not ret:
       rospy.logerr('Did not get a valid 2D A* path to waypoint')
       return
 
-    #Track the generated 2D path
+    ##### Track the generated 2D path
     path_goal = TrackPathGoal()
     path_goal.path = jps_path
     #self.track_path_action_client_.send_goal(path_goal, done_cb=self.trackpath_done_cb)
     self.track_path_action_client_.send_goal(path_goal)
 
-    #Rinse and repeat every X seconds
 
   def get_2d_path(self, waypoint):
 
@@ -150,25 +143,31 @@ class KrInterface:
     jps2d_resp = self.jps_service_client_(jps_srv)
 
     if jps2d_resp:
-      rospy.loginfo("Successful jps service call")
+      rospy.loginfo("Successful jps planner service call")
       if len(jps2d_resp.plan.poses) == 0:
         rospy.logerr("JPS did not return a path")
         return False, []
       return True, jps2d_resp.plan
     else:
-      rospy.logerr("Failed to jps call service")
+      rospy.logerr("Failed to call jps planner service")
       return False, []
 
     return False, []
 
   def get_frontier_waypoint(self):
+
+    # Get current location map Index
+    if not self.get_map_index():
+      rospy.logerr("Exploration failed, could not get current position.")
+      return False, []
+
     self.mutex_.acquire()
     result, self.goal_point_ = self.frontier_planner_.findExplorationTarget(self.current_map_, self.start_point_)
     self.mutex_.release()
 
     if self.prepare_plan():
       if result == EXPL_TARGET_SET:
-        rospy.loginfo("Exploration target set")
+        rospy.loginfo("Exploration waypoint set")
 
         goal_x, goal_y = self.current_map_.getCoordinates(self.goal_point_)
         if goal_x != False or goal_y != False:
