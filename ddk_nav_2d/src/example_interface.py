@@ -103,13 +103,27 @@ class KrInterface:
     #Sanitize/check the generated waypoint
 
     #Generate a 2D path to the waypoint
+    ret, jps_path = self.get_2d_path(waypoint)
+    if not ret:
+      rospy.logerr('Did not get a valid 2D A* path to waypoint')
+      return
+
+    #Track the generated 2D path
+    path_goal = TrackPathGoal()
+    path_goal.path = jps_path
+    #self.track_path_action_client_.send_goal(path_goal, done_cb=self.trackpath_done_cb)
+    self.track_path_action_client_.send_goal(path_goal)
+
+    #Rinse and repeat every X seconds
+
+  def get_2d_path(self, waypoint):
 
     current_pose = TransformStamped()
     try:
       current_pose = self.tfBuffer_.lookup_transform(self.map_frame_, self.robot_frame_, rospy.Time(0))
     except:
       rospy.logwarn("Couldn't get robot position")
-      return
+      return False, []
 
     jps_srv = GetPlanRequest()
     jps_srv.start.header = current_pose.header
@@ -133,23 +147,19 @@ class KrInterface:
     goal.pose.orientation.w = 1
 
     jps_srv.goal = goal
-
     jps2d_resp = self.jps_service_client_(jps_srv)
+
     if jps2d_resp:
       rospy.loginfo("Successful jps service call")
       if len(jps2d_resp.plan.poses) == 0:
         rospy.logerr("JPS did not return a path")
-        return
+        return False, []
+      return True, jps2d_resp.plan
     else:
       rospy.logerr("Failed to jps call service")
-      return
+      return False, []
 
-    #Track the generated 2D path
-    path_goal = TrackPathGoal()
-    path_goal.path = jps2d_resp.plan
-    self.track_path_action_client_.send_goal(path_goal, done_cb=self.trackpath_done_cb)
-
-    #Rinse and repeat every X seconds
+    return False, []
 
   def get_frontier_waypoint(self):
     self.mutex_.acquire()
