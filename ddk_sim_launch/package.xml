@@ -20,4 +20,9 @@
   <exec_depend>nav2d_navigator</exec_depend>
   <exec_depend>nav2d_operator</exec_depend>
 
+<export>
+    <gazebo_ros gazebo_model_path="${prefix}/models"/>
+    <gazebo_ros gazebo_media_path="${prefix}/models"/>
+</export>
+
 </package>
