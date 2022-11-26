@@ -24,7 +24,7 @@
       <param name="cell_robot_radius" type="int" value="3"/>
 
       <!-- frequency means the frequency of the exploration while loop -->
-      <param name="frequency" type="double" value="2"/>
+      <param name="frequency" type="double" value="1.0"/>
 
       <!-- thredhold value of occupied cell in occupancy grid -->
       <param name="occupied_cell_threshold" type="int" value="1"/>
@@ -43,7 +43,7 @@
       <param name="frontier_distance_threshold" type="double" value="0.5" />
 
       <param name="frontier_fov" type="double" value="120.0" />
-      <param name="first_360_scan" type="bool" value="false" />
+      <param name="first_360_scan" type="bool" value="true" />
 
     </node>
     <node name="Explore" pkg="ddk_nav_2d" type="explore_client" />
@@ -96,5 +96,13 @@
 
     <!-- </node> -->
   </group>
+
+  <group ns="$(arg mav_name)">
+    <include file="$(find plan_manage)/launch/kino_replan.launch">
+      <arg name="world_frame_id" value="$(arg map_frame)"/>
+      <arg name="mav_name" value="$(arg mav_name)"/>
+    </include>
+  </group>
+
 
 </launch>

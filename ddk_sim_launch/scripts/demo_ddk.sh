@@ -57,19 +57,19 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch traj_repl
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch ddk_sim_tf_pub.launch mav_name:=${MAV_NAME}" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch ddk_navigator.launch" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 6; roslaunch ddk_sim_launch ddk_navigator.launch" Enter
 tmux select-layout -t $SESSION_NAME even-horizontal
 
 tmux new-window -t $SESSION_NAME -n "In"
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; rosservice call ddk/StartExploration"
 
-tmux new-window -t $SESSION_NAME -n "Plan"
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning snav_obstacle_demo.launch mav_name:=${MAV_NAME}" Enter
-tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps2d.launch mav_name:=${MAV_NAME}" Enter
-tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps3d.launch mav_name:=${MAV_NAME}" Enter
-tmux select-layout -t $SESSION_NAME tiled
+# tmux new-window -t $SESSION_NAME -n "Plan"
+# tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning snav_obstacle_demo.launch mav_name:=${MAV_NAME}" Enter
+# tmux split-window -t $SESSION_NAME
+# tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps2d.launch mav_name:=${MAV_NAME}" Enter
+# tmux split-window -t $SESSION_NAME
+# tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch traj_replanning jps3d.launch mav_name:=${MAV_NAME}" Enter
+# tmux select-layout -t $SESSION_NAME tiled
 
 # Add window to easily kill all processes
 tmux new-window -t $SESSION_NAME -n "Kill"

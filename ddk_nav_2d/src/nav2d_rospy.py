@@ -67,7 +67,7 @@ class Nav2D:
     self.frontier_distance_threshold_ = rospy.get_param(
         "~frontier_distance_threshold", 0.5)
     self.frontier_fov_ = rospy.get_param("~frontier_fov", 90.0)
-    self.first_scan_ = rospy.get_param("~first_360_scan", True)
+    self.first_scan_ = rospy.get_param("~first_360_scan", False)
     rospy.logerr("first scan: {}".format(self.first_scan_))
     self.current_map_ = GridMap()
     self.map_updated_ = False

@@ -170,7 +170,7 @@ int FrontierPlanner::findExplorationTarget(GridMap* map, double current_yaw, uns
       double total_cost = distance/std::sqrt(2) + (scan_distance_ - obstacle_dis) * penalize_factor + fov_cost;
       // double total_cost = goal_dis + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
       // double total_cost = (distance / resolution) + (scan_cell_distance_ - obstacle_dis) * penalize_factor + fov_cost;
-      ROS_INFO("Total cost for curr frontier: %f, path cost(man): %f, path_cost: %f, obs cost: %f, fov_cost: %f", total_cost, distance/std::sqrt(2), euclidean_path_distance, (scan_distance_ - obstacle_dis) * penalize_factor, fov_cost);
+      //ROS_INFO("Total cost for curr frontier: %f, path cost(man): %f, path_cost: %f, obs cost: %f, fov_cost: %f", total_cost, distance/std::sqrt(2), euclidean_path_distance, (scan_distance_ - obstacle_dis) * penalize_factor, fov_cost);
       frontier_queue.insert(std::make_pair(total_cost, Entry(euclidean_path_distance, index)));
       delete[] frontier_plan;
 

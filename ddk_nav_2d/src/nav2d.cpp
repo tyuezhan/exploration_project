@@ -25,7 +25,7 @@ Nav2D::Nav2D() {
   pnh_.param<int>("goal_frontier_num_threshold", goal_frontier_threshold_, 30);
   pnh_.param<double>("frontier_distance_threshold", frontier_distance_threshold_, 0.5);
   pnh_.param<double>("frontier_fov", frontier_fov_, 90.0);
-  pnh_.param<bool>("first_360_scan", first_scan_, true);
+  pnh_.param<bool>("first_360_scan", first_scan_, false);
 
   // Subscriber
   map_subscriber_ = nh_.subscribe("projected_map", 5, &Nav2D::mapSubscriberCB, this);
@@ -271,17 +271,17 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               if (yaw > PI) yaw -= 2 * PI;
 
               // Turn head, needed for Trajectory tracker.
-              if (!track_path){
-                line_tracker_status_ = NAV_ST_TURNING;
-                while(true){
-                    if (line_tracker_status_ == NAV_ST_IDLE) break;
-                    if (line_tracker_status_ == NAV_ST_TURNING){
-                        goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
-                    }
-                    ros::spinOnce();
-                    loop_rate.sleep();
-                }
-              }
+              // if (!track_path){
+              //   line_tracker_status_ = NAV_ST_TURNING;
+              //   while(true){
+              //       if (line_tracker_status_ == NAV_ST_IDLE) break;
+              //       if (line_tracker_status_ == NAV_ST_TURNING){
+              //           goTo(pos_(0), pos_(1), pos_(2), yaw, 0.0f, 0.0f, false);
+              //       }
+              //       ros::spinOnce();
+              //       loop_rate.sleep();
+              //   }
+              // }
 
               ROS_INFO("goal: %f, %f, %f, %f", map_goal_x, map_goal_y, map_goal_z, yaw);
               // Check goal occupancy:
@@ -327,11 +327,10 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
               goal.pose.position.y = map_goal_y;
               goal.pose.position.z = map_goal_z;
               goal.pose.orientation = goal_quaternion;
-
               // Publish goal for visualization in rviz
               goal_publisher_.publish(goal);
 
-              bool ret = getJpsTraj(local_time, tf_odom_to_world, goal, track_path);
+              //bool ret = getJpsTraj(local_time, tf_odom_to_world, goal, track_path);
 
             }
           }
