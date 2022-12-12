@@ -230,6 +230,8 @@ void Nav2D::receiveExploreGoal(const ddk_nav_2d::ExploreGoal::ConstPtr &goal) {
     }
 
     // Not moving(reached goal) or recheck, need to find new frontiers.
+    ROS_WARN("Moving: %d", moving);
+    ROS_WARN("recheck: %d", recheck);
     if (!moving || recheck){
       boost::mutex::scoped_lock lock(map_mutex_);
       if (preparePlan()) {
