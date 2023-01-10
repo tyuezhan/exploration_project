@@ -17,7 +17,7 @@ Nav2D::Nav2D() {
   pnh_.param<int>("cell_robot_radius", cell_robot_radius_, 1);
   pnh_.param<double>("frequency", frequency_, 2.0);
   pnh_.param<int>("occupied_cell_threshold", occupied_cell_threshold_, 1);
-  pnh_.param<std::string>("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
+  // pnh_.param<std::string>("explore_action_topic", explore_action_topic_, std::string(NAV_EXPLORE_ACTION));
   pnh_.param<double>("map_inflation_radius", map_inflation_radius_, 0.5);
   pnh_.param<float>("flight_height", flight_height_, 1.2);
   pnh_.param<bool>("goal_recheck", goal_recheck_, true);
@@ -75,8 +75,8 @@ Nav2D::Nav2D() {
   frontier_planner_ptr_->setFovRange(frontier_fov_);
 
   // Action server
-  explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));
-  explore_action_server_ptr_->start();
+  // explore_action_server_ptr_.reset(new ExploreServerType(explore_action_topic_, boost::bind(&Nav2D::receiveExploreGoal, this, _1), false));
+  // explore_action_server_ptr_->start();
 }
 
 
