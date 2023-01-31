@@ -43,9 +43,9 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch kr_mav_la
 tmux select-layout -t $SESSION_NAME tiled
 
 tmux new-window -t $SESSION_NAME -n "Main"
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 3; export DISPLAY=${CURRENT_DISPLAY}; roslaunch ddk_sim_launch my_ddk_gazebo.launch" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 2; export DISPLAY=${CURRENT_DISPLAY}; roslaunch ddk_sim_launch my_ddk_gazebo.launch" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; roslaunch mrsl_quadrotor_launch spawn.launch use_frame_prefix:=true mav_type:=${MAV_TYPE} Y:=1.57 mav_name:=${MAV_NAME}" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 3; export DISPLAY=${CURRENT_DISPLAY}; roslaunch mrsl_quadrotor_launch spawn.launch use_frame_prefix:=true mav_type:=${MAV_TYPE} Y:=1.57 mav_name:=${MAV_NAME}" Enter
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; export DISPLAY=${CURRENT_DISPLAY}; roslaunch ddk_sim_launch controller.launch mav_type:=${MAV_TYPE} mav_name:=${MAV_NAME} odom_topic:=${ODOM_TOPIC} mass:=0.25" Enter
 tmux split-window -t $SESSION_NAME
@@ -53,9 +53,9 @@ tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 6; roslaunch ddk_sim_l
 tmux select-layout -t $SESSION_NAME tiled
 
 tmux new-window -t $SESSION_NAME -n "Exp"
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch traj_replanning octomap_mapping.launch mav_name:=${MAV_NAME}" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 7; roslaunch traj_replanning octomap_mapping.launch mav_name:=${MAV_NAME}" Enter
 tmux split-window -t $SESSION_NAME
-tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 4; roslaunch ddk_sim_launch ddk_sim_tf_pub.launch mav_name:=${MAV_NAME}" Enter
+tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 5; roslaunch ddk_sim_launch ddk_sim_tf_pub.launch mav_name:=${MAV_NAME}" Enter
 tmux split-window -t $SESSION_NAME
 tmux send-keys -t $SESSION_NAME "$SETUP_ROS_STRING; sleep 6; roslaunch ddk_sim_launch ddk_navigator.launch" Enter
 tmux select-layout -t $SESSION_NAME even-horizontal
