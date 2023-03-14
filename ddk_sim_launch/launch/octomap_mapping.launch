@@ -19,7 +19,7 @@
 
     <param name="latch" type="bool" value="false"/>
 
-    <param name="occupancy_min_z" value="0.05"/>
+    <param name="occupancy_min_z" value="0.1"/>
 
     <param name="occupancy_max_z" value="2.4"/>
 

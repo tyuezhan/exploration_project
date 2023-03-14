@@ -5,11 +5,14 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /TF1
+        - /Projected2DMap1
+        - /InflatedMap1
         - /PointCloud21
         - /Image1
         - /Odometry1
         - /Odometry1/Shape1
         - /PointCloud22
+        - /OccupancyGrid1
       Splitter Ratio: 0.5408163070678711
     Tree Height: 216
   - Class: rviz/Selection
@@ -242,7 +245,7 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: Projected2DMap
-      Topic: /ddk/projected_map
+      Topic: /ddk/prefilter/projected_map
       Unreliable: false
       Use Timestamp: false
       Value: true
@@ -250,12 +253,12 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: InflatedMap
       Topic: /ddk/inflated_map
       Unreliable: false
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -555,6 +558,18 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: octomap_rviz_plugin/OccupancyGrid
+      Enabled: false
+      Max. Height Display: 3.4028234663852886e+38
+      Max. Octree Depth: 16
+      Min. Height Display: -3.4028234663852886e+38
+      Name: OccupancyGrid
+      Octomap Topic: /ddk/prefilter/octomap_binary
+      Queue Size: 5
+      Value: false
+      Voxel Alpha: 1
+      Voxel Coloring: Z-Axis
+      Voxel Rendering: Occupied Voxels
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -596,17 +611,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.7313130497932434
-        Y: 0.262973427772522
-        Z: 0.8600152730941772
+        X: -0.07249123603105545
+        Y: 0.5797756314277649
+        Z: 0.8789869546890259
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8647966384887695
+      Pitch: 1.5547963380813599
       Target Frame: base_link
-      Yaw: 4.717255115509033
+      Yaw: 4.707258701324463
     Saved: ~
 Window Geometry:
   Displays:
